@@ -43,3 +43,54 @@ docker run --name demo -p 8080:80 nginx:latest
 ## mysql环境的搭建
 
 为了搭建mysql环境，我预期使用mysql的image进行create container。在通过上述的类似操作之后，我发现我能execute command中用命令行进入到mysql，但是我使用PHP脚本的时候却被拒绝，这个原因在于mysql8.0的auth的默认模式并不是用户名密码的，因为我并没有什么特别的用途，我就直接退回到了mysql5.7，当然你也可以进入到数据库内部调整auth的方式为naïve mode
+
+## Dockerfile的使用
+
+为了更加自动化的搭建环境，我们选择使用Dockerfile来进行环境的搭建，Dockerfile的主要用意为以某个镜像为基础，在其上使用一系列的指令安装或启动其他软件达到最终的效果。
+
+```dockerfile
+# base image
+FROM centos
+
+# MAINTAINER
+MAINTAINER ty0207 ty0207@sjtu.edu.cn
+
+# put nginx-1.12.2.tar.gz into /usr/local/src and unpack nginx
+ADD http://nginx.org/download/nginx-1.14.0.tar.gz .
+
+#RUN 执行以下命令 
+RUN yum install -y pcre-devel wget net-tools gcc zlib zlib-devel make openssl-devel
+RUN useradd -M -s /sbin/nologin nginx
+RUN tar -zxvf nginx-1.14.0.tar.gz
+RUN mkdir -p /usr/local/nginx
+RUN cd nginx-1.14.0 && ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_stub_status_module && make && make install
+RUN ln -s /usr/local/nginx/sbin/* /usr/local/sbin/
+ 
+#EXPOSE 映射端口
+EXPOSE 80
+ 
+#CMD 运行以下命令
+CMD ["nginx"]
+```
+
+注意我们在run的时候，docker认为每run一次就是一层，最终会导致整个docker image层数非常深，于是我们应当在 Run的后面加上斜杠例如
+
+```dockerfile
+RUN useradd -M -s /sbin/nologin nginx
+RUN tar -zxvf nginx-1.14.0.tar.gz
+```
+
+可以转化成：
+
+```dockerfile
+RUN useradd -M -s /sbin/nologin nginx \
+    tar -zxvf nginx-1.14.0.tar.gz
+```
+
+## 挂载
+
+另外由于我们在部署之后，可能很长时间我们是在更新代码，而如果仅仅是为了更新代码，我们完全没有必要更新docker（除非有一些新的软件需要使用，我们需要配置与安装），并且我们几个docker container可能会共享一些数据，比如一些静态数据或者是数据库，这需要我们对这些文件进行共享并且与docker中的数据双向绑定（当然大部分时候是改容器外的东西），我们常使用：
+
+1. 命令行中的 `-v`options
+2. Dockerfile中的 `VOLUME`关键字
+

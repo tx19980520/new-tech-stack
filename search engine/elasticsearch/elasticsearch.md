@@ -30,3 +30,43 @@ ElasticSearch（以下简称ES）是基于java开发的一套快速易上手的�
 
 详细的一系列操作请参考[这里](https://blog.csdn.net/linhaiyun_ytdx/article/details/79601743)
 
+## 中文分词
+
+由于elasticsearch的中文分词是单字分词，对中文的原生支持并不好，因此我们需要下载中文分词器
+
+```shell
+./bin/elasticsearch-plugin install https://github.com/medcl/ela
+sticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.zip
+#具体的版本号请到插件的github仓库中进行查看
+```
+
+之后重启ES，对于需要使用ik分词器的字段，请进行如下的配置
+
+```json
+{
+  "properties": {
+      "content": {
+         "type": "text",
+         "analyzer": "ik_max_word",
+         "search_analyzer": "ik_max_word"
+    }
+  }
+}'
+```
+
+`ik_max_word`和`ik_smart`为最细和最粗两种分词模式，可以根据不同的需要进行选择
+
+## postman测试
+
+我们最后使用postman进行测试，方便之后的接口提供，非常的方便，只需要将在body中写入在Kibana中原有的json字段即可。
+
+```json
+{
+    "query": {
+        "match": {
+            "address": "山东"
+        }
+    }
+}
+```
+

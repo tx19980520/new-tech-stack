@@ -102,12 +102,11 @@ class BilibiliDownloaderMiddleware(object):
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
 		
-	class JSPageMiddleware(object):
-
+class JSPageMiddleware(object):
     #通过chrome 动态访问
     def process_request(self,request,spider):
         if spider.name =="qicha":
-            spider. browser.get(request.url)
+            spider.browser.get(request.url)
             import time
             time.sleep(3)
             print "访问：{0}".format(request.url)

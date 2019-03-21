@@ -51,10 +51,81 @@ sticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.
          "search_analyzer": "ik_max_word"
     }
   }
-}'
+}
 ```
 
 `ik_max_word`和`ik_smart`为最细和最粗两种分词模式，可以根据不同的需要进行选择
+
+# restful API
+
+1. 创建map
+
+   ```curl
+   PUT /temage/
+   {
+     "settings":{
+       "number_of_shards": 3,   
+       "number_of_replicas": 1	
+     },
+     "mappings":{
+       "product":{
+         "properties":{
+           "title":{
+             "type":"text",
+             "analyzer": "ik_max_word",
+             "search_analyzer": "ik_max_word"
+           },
+           "style":{
+             "type":"keyword"
+           },
+           "ID":{
+             "type":"integer"
+           },
+         }
+       }
+     }
+   }
+   
+   POST /temage/product/
+   {
+       "title": "xxxx",
+       "style": ["tech", "math"],
+       "ID": 1
+   }
+   
+   POST /temage/product/_search/
+   {
+       "query": {
+           "bool": {
+               "should": [
+                   {
+                       "terms": {
+                           "style": [
+                               "math",
+                               "tech"
+                           ]
+                       }
+                   },
+                   {
+                       "match": {
+                           "title": "keywords"
+                       }
+                   }
+               ]
+           }
+       }
+   }
+   POST /temage/product/_delete_by_query/
+   {
+       "query":{
+           "match":{
+               "ID": 1
+           }
+       }
+   }
+   ```
+
+
 
 ## postman测试
 
@@ -69,4 +140,25 @@ sticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.
     }
 }
 ```
+
+## python requests的使用
+
+我们已经使用过postman进行测试，相信使用requests发送请求其实也不存在任何的问题，但仍会有一些需要注意的地方。
+
+1. headers
+
+   官方在版本升级之后专门强调过传输的数据格式，如果你不按照正确的操作来进行，则会报如下的错误：
+
+   ```json
+   {"error":
+    {"root_cause":
+     [{"type":"mapper_parsing_exception","reason":"failed to parse"}],
+     "type":"mapper_parsing_exception",
+     "reason":"failed to parse",
+     "caused_by":{"type":"not_x_content_exception","reason":"Compressor detection can only be called on some xcontent bytes or compressed xcontent bytes"}},
+    "status":400
+   }
+   ```
+
+   主要原因是传输的数据格式出现了问题，为什么我们在postman里面不会这样呢，是因为postman在设置为json时自动添加了`Content-Type="application/json"`我们需要进行这样的主动设置。
 

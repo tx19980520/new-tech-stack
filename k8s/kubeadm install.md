@@ -52,8 +52,13 @@ mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ###
+###
+vim /etc/kubernetes/manifests/kube-apiserver.yaml
+command: 
+--enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
+###
 kubectl apply -f kube-flannel.yaml # 创建flannel
-kubectl apply -f ssl-kubernets-dashboard.yaml # 创建dashboard
+kubectl apply -f ssl-kube-dashboard.yaml # 创建dashboard
 kubectl -n kube-system edit service kubernetes-dashboard # 将dashboard改为NodePort的 type
 kubectl -n kube-system get service kubernetes-dashboard # 查看service的类型
 ### 上面这一步已经可以看到具体的页面了，但是没有任何的权限
@@ -68,13 +73,18 @@ https://<master-ip>:<apiserver-port> # 访问dashboard
 安装各插件的操作与master相同。
 
 ```bash
+### 首先将master节点上的./kube/config复制为该node节点上的/etc/kubernetes/admin.conf
+mkdir -p $HOME/.kube 
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+###
 # sudo vim /etc/systemd/system/kubelet.service.d/10-kubeadm.conf 这个操作不靠谱，在高版本里面，因为这个参数的设置地点不在这里了，而且如果是修改其中某句话，将是一个没网的孤立节点
 # https://kubernetes.io/docs/setup/cri/ 供大家参考
 sudo kubeadm join xxx
 # 如果出现错误，大致是token的问题 在master上面使用kubeadm token create --print-join-command生成新的替换
 # 如果遇到“kubelet-config-1.14" is forbidden: User "system:bootstrap:gmt42b" cannot get resource "configmaps" in API group "" in the namespace "kube-system"请核对你master上的kubeadm、kubectl、kubelet的版本号和node节点上的一不一样，下载正确的版本
 # 版本号非常的奇特是x.xx.x-00
-
+# 似乎kubeadm可以直接
 ### 如果节点已经加入到了集群中，如果仍旧是notready的状态，那我们需要debug就可以看日志
 journalctl -u kubelet
 ###
@@ -209,7 +219,6 @@ spec:
    sudo docker tag haojianxun/gcr.io.kubernetes-helm.tiller:v2.13.1 gcr.io/kubernetes-helm/tiller:v2.13.1 # 每个节点上都需要pull该images
    # helm 请自行前往官网直接下载相关二进制编译好的文件， 直接cp到bin里面去就能用了https://helm.sh/docs/install/
    ### install tiller
-   helm init --skip-refresh
    wget https://raw.githubusercontent.com/istio/istio/release-1.1/install/kubernetes/helm/helm-service-account.yaml
    kubectl apply -f helm-service-account.yaml # 为tiller 创建账户
    helm init --service-account tiller --skip-refresh # 通过helm的init创建tiller

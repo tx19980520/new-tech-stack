@@ -200,7 +200,30 @@ spec:
    </html>
    ```
 
+   ## Helm 和 Tiller的安装
+
+   这个部分是随着历史的演进而来的，我们如果有很大的工程的话，我们将会存在多个deployment、service文件，并且启动的先后顺序也是非常敏感的，我们手动去一个个启动可能会出现错误，管理将存在很大的问题。最终将Helm作为包管理器，则能够解决这问题，将一个体系的deployment、service打包，成为一个chart，最终可以将这些chart以某种顺序进行部署。
+
+   ```bash
+   sudo docker pull haojianxun/gcr.io.kubernetes-helm.tiller:v2.13.1
+   sudo docker tag haojianxun/gcr.io.kubernetes-helm.tiller:v2.13.1 gcr.io/kubernetes-helm/tiller:v2.13.1 # 每个节点上都需要pull该images
+   # helm 请自行前往官网直接下载相关二进制编译好的文件， 直接cp到bin里面去就能用了https://helm.sh/docs/install/
+   ### install tiller
+   helm init --skip-refresh
+   wget https://raw.githubusercontent.com/istio/istio/release-1.1/install/kubernetes/helm/helm-service-account.yaml
+   kubectl apply -f helm-service-account.yaml # 为tiller 创建账户
+   helm init --service-account tiller --skip-refresh # 通过helm的init创建tiller
+   ###
+   ```
+
+   ## Istio
+
+   ![k8s+Istio](./k8s+Istio.png)
+
+   我们的kubernetes实现了分布式部署的相关工作，但对于在线管理上kubernetes能做的并不多，我们需要实现熔断限流、动态路由，因而我们需要在kubernetes的体系下融入Istio。
+
+   
+
    ## 现在仍存在的问题
 
    1. 我每一个node物理机上都需要手动对kubeadm进行配置并且因为网络问题主动pull相关docker的images吗？
-   2. 如何将Istio和Kubernetes结合起来实现部署+监控，吧Istio当做Kubernetes的一个service吗，然后所有流量都设定为从这里走？

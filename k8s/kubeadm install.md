@@ -15,34 +15,34 @@ kubernetes=1.13.5 kubedashboard=1.10.3  ubuntu 18.03
    docker tag xxxx/name:0.0 k8s.gcr.io/name:0.0
    ```
 
-2. 
+2. 基本环境的搭建
+
+   ```bash
+   sudo apt-get install \
+       apt-transport-https \
+       ca-certificates \
+       curl \
+       gnupg-agent \
+       software-properties-common
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+   sudo add-apt-repository \
+      "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) \
+      stable"
+   sudo apt-get update
+   sudo apt-get install docker-ce docker-ce-cli containerd.io
+   ### 安装docker 完成
+   sudo vim /etc/apt/sources.list
+   添加下列源用于安装各项kubernetes的部件
+   #deb [arch=amd64] https://mirrors.ustc.edu.cn/kubernetes/apt kubernetes-xenial main
+   gpg --keyserver keyserver.ubuntu.com --recv-keys BA07F4FB
+   gpg -a --export 6A030B21BA07F4FB | sudo apt-key add - #OK
+   # 添加源对应的key
+   sudo apt-get update
+   sudo apt-get install -y kubelet kubeadm kubectl
+   ```
 
 ## master
-
-```bash
-sudo apt-get install \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg-agent \
-    software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"
-sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io
-### 安装docker 完成
-sudo vim /etc/apt/soursce.list
-添加下列源用于安装各项kubernetes的部件
-#deb [arch=amd64] https://mirrors.ustc.edu.cn/kubernetes/apt kubernetes-xenial main
-gpg --keyserver keyserver.ubuntu.com --recv-keys BA07F4FB
-gpg -a --export 6A030B21BA07F4FB | sudo apt-key add - 
-# 添加源对应的key
-sudo apt-get update
-sudo apt-get install -y kubelet kubeadm kubectl
-```
 
 ```shell
 kubeadm init --pod-network-cidr=10.244.0.0/16 # 参数要求是flannel的要求
@@ -56,7 +56,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 vim /etc/kubernetes/manifests/kube-apiserver.yaml
 command: 
 --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
-###
+### 记得把老的那个没running的kube-apiserver给删了
 kubectl apply -f kube-flannel.yaml # 创建flannel
 kubectl apply -f ssl-kube-dashboard.yaml # 创建dashboard
 kubectl -n kube-system edit service kubernetes-dashboard # 将dashboard改为NodePort的 type
@@ -80,6 +80,8 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ###
 # sudo vim /etc/systemd/system/kubelet.service.d/10-kubeadm.conf 这个操作不靠谱，在高版本里面，因为这个参数的设置地点不在这里了，而且如果是修改其中某句话，将是一个没网的孤立节点
 # https://kubernetes.io/docs/setup/cri/ 供大家参考
+sudo swapoff -a # 关闭交换区
+
 sudo kubeadm join xxx
 # 如果出现错误，大致是token的问题 在master上面使用kubeadm token create --print-join-command生成新的替换
 # 如果遇到“kubelet-config-1.14" is forbidden: User "system:bootstrap:gmt42b" cannot get resource "configmaps" in API group "" in the namespace "kube-system"请核对你master上的kubeadm、kubectl、kubelet的版本号和node节点上的一不一样，下载正确的版本
@@ -109,6 +111,7 @@ EOF
 kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.9.1/Documentation/kube-flannel.yml
 ### flannel 没装没配置
 ### 如果报pull image相关的错误，详见前方的通用操作。
+### 建议在join之前先直接把flannel装好就差不多了
 ```
 
 ### node使用nodeport简易部署一个nginx服务
@@ -122,6 +125,7 @@ kubectl apply -f nginx-deployment.yaml
 ### 创建service与pod进行对接，在此service的type为NodePort
 kubectl apply -f nginx-service.yaml
 ###
+### 如果需要删除某部署，则直接进行kubectl delete deployment xxx
 ```
 
 ```yaml
@@ -223,6 +227,13 @@ spec:
    kubectl apply -f helm-service-account.yaml # 为tiller 创建账户
    helm init --service-account tiller --skip-refresh # 通过helm的init创建tiller
    ###
+   ### 但是我直接装没发现怎么装istio-injector，找了个博客去生成模板去create istio.yaml
+   helm template install/kubernetes/helm/istio --name istio --namespace istio-system --set sidecarInjectorWebhook.enabled=true --set ingress.service.type=NodePort --set gateways.istio-ingressgateway.type=NodePort --set gateways.istio-egressgateway.type=NodePort --set tracing.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.jaeger.enabled=true --set grafana.enabled=true > istio.yaml
+   
+   kubectl create namespace istio-system
+   kubectl apply -f istio.yaml# 我们自己的文件去istio的安装目录下去找
+   ### 
+   ### 
    ```
 
    ## Istio
@@ -230,6 +241,42 @@ spec:
    ![k8s+Istio](./k8s+Istio.png)
 
    我们的kubernetes实现了分布式部署的相关工作，但对于在线管理上kubernetes能做的并不多，我们需要实现熔断限流、动态路由，因而我们需要在kubernetes的体系下融入Istio。
+
+   ## 初步试探相关bookinfo的相关结果
+
+   对官网的bookinfo进行了一些初步试探，得到的初步的结论如下：
+
+   1. gateway是整个流量的入口。
+   2. 会使用某个Istio的Virtual Service，设置其对应的gateway
+   3. 在Virtual Service中设置相应路由，路由直接我们定义的实际Service挂钩（host与Service的name）
+   4. Service回到kubernetes的Service和Deploy的层级，如果不对外暴露，则直接使用ClusterIP即可
+
+   ### 初步试探熔断机制的相应结果
+
+   熔断机制的实现是针对某项服务而言的，当访问该服务达到一定的条件之后，我们将对其进行相应的阻拦[ref](https://istio.io/zh/docs/reference/config/istio.networking.v1alpha3/#trafficpolicy)
+
+   ```yaml
+   apiVersion: networking.istio.io/v1alpha3
+   kind: DestinationRule
+   metadata:
+     name: httpbin
+   spec:
+     host: httpbin # 某个服务的名称
+     trafficPolicy: # 设置上游池的连接设置
+       connectionPool:
+         tcp:
+           maxConnections: 1
+         http:
+           http1MaxPendingRequests: 1
+           maxRequestsPerConnection: 1
+       outlierDetection:
+         consecutiveErrors: 1
+         interval: 1s
+         baseEjectionTime: 3m
+         maxEjectionPercent: 100
+   ```
+
+   ### Istio的可视化工作
 
    
 

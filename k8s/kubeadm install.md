@@ -171,7 +171,7 @@ spec:
 
 ```
 
-#### nodePort port targetPort的不同点
+## nodePort port targetPort的不同点
 
 1. nodePort是指在设定为NodePort类型下的service 在物理机上能够用`<IP>:<nodePort>`进行访问
 
@@ -213,8 +213,7 @@ spec:
    </body>
    </html>
    ```
-
-   ## Helm 和 Tiller的安装
+## Helm 和 Tiller的安装
 
    这个部分是随着历史的演进而来的，我们如果有很大的工程的话，我们将会存在多个deployment、service文件，并且启动的先后顺序也是非常敏感的，我们手动去一个个启动可能会出现错误，管理将存在很大的问题。最终将Helm作为包管理器，则能够解决这问题，将一个体系的deployment、service打包，成为一个chart，最终可以将这些chart以某种顺序进行部署。
 
@@ -242,7 +241,7 @@ spec:
 
    我们的kubernetes实现了分布式部署的相关工作，但对于在线管理上kubernetes能做的并不多，我们需要实现熔断限流、动态路由，因而我们需要在kubernetes的体系下融入Istio。
 
-   ## 初步试探相关bookinfo的相关结果
+### 初步试探相关bookinfo的相关结果
 
    对官网的bookinfo进行了一些初步试探，得到的初步的结论如下：
 
@@ -278,8 +277,88 @@ spec:
 
    ### Istio的可视化工作
 
-   
+   直接将grafana转变为NodePort，因为之前已经配置过，所以没有太大的问题。
 
-   ## 现在仍存在的问题
+   ![grafana](./grafana.png)
 
-   1. 我每一个node物理机上都需要手动对kubeadm进行配置并且因为网络问题主动pull相关docker的images吗？
+   ### bookinfo示例的使用过程
+
+   ![reviews-v1](./reviews-v1.png)
+
+   ![reviews-v2](./reviews-v2.png)
+
+   ![reviews-v3](./reviews-v3.png)
+
+   当我们按照官方[bookinfo](https://istio.io/zh/docs/examples/bookinfo/)（注意一定要把DestinationRule 给配置了，不然到后面，我们进行引流的时候会发现Error）进行完成安装之后，我们在浏览器中打开对应的页面，将会看到上面三个图（F5刷新）的界面，这是由于我们对reviews设置了v1-v3，而如果没有进行流量的控制，则实行的策略将是按顺序进行访问，我们使用[教程](https://istio.io/zh/docs/tasks/traffic-management/request-routing/)中的相关方法，会讲v2定向给jason用户，而未登录用户则无法看到reviews的评级。
+
+   之后我们按照[分流配置文件](https://raw.githubusercontent.com/istio/istio/release-1.1/samples/bookinfo/networking/virtual-service-reviews-50-v3.yaml)可以让进行流量的分流，可以看到上图中v2与v1进行了基本均分的切换。
+
+
+
+## ElasticSearch的搭建
+
+### elasticsearch的helm安装
+
+helm搭建集群非常类似于npm
+
+   ```bash
+helm repo add bitnami https://charts.bitnami.com # 添加仓库
+helm install --name elastic -f values.yaml bitnami/elasticsearch # 按照values.yaml自定义属性进行安装
+kubectl port-forward --namespace default svc/elastic-elasticsearch-coordinating-only 9200:9200 #将api的端口暴露出去
+### 上述代码卡住的时候请直接edit svc 来改成nodePort
+   ```
+
+### kibana的helm安装
+
+```bash
+helm repo update
+helm install stable/kibana --version 2.2.0 -f values.yaml
+NOTES:
+To verify that kibana has started, run:
+
+  kubectl --namespace=default get pods -l "app=kibana"
+
+Kibana can be accessed:
+
+  * From outside the cluster, run these commands in the same shell:
+
+    export NODE_PORT=$(kubectl get --namespace default -o jsonpath="{.spec.ports[0].nodePort}" services kibana)
+    export NODE_IP=$(kubectl get nodes --namespace default -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo http://$NODE_IP:$NODE_PORT
+
+```
+
+我们在得到了hello world的相关回应之后发现了另一个问题，elastic-elasticsearch-data-0这个pod一直是在pending的状态，我反过头去看配置的相关文档，发现了这里面的相关问题：
+
+![PVCnotfound](./PVCnotfound.png)
+
+- Kubernetes 1.6+
+- PV dynamic provisioning support on the underlying infrastructure
+
+第一个条件我们显然满足，第二个条件我至少没有主动的实现过，则需要我们进行探索
+
+
+
+首先我们要去了解PV和PVC的相关知识，我们可以从docker的Volume的讲起
+
+### Volume, Persistent Volumes & Persistent Volumes Claim
+
+Volume这个概念在docker当中就已经出现了，我们经常会将我们的代码相关放置在容器外层环境的目录下，对于这样我们可以很简单的对这些文件进行修改（例如git pull或者直接更换文件，但服务并不需要修改相关设置），我们会将该文件夹\文件挂载进我们的容器中（两边对文件的修改都是有效的，比如我们的数据库容器内部改或者外部我们进行清理都是有效的，但是代码一般情况我们选择在外部进行更改）。
+
+而我们的讨论扩展到集群，则会发现，这样的挂载似乎是可能跨越物理机（或者虚拟机）的，我们需要进一步的进行抽象，才能够对其进行更加有效的管理，为了方便理解我们这里以static PV进行介绍。
+
+Persistent Volumes Claim(PVC) 可以简单的认为是一种资源的请求，当我们启用PVC之后，我们的集群可以给予相应的PV，让资源能够被使用，但是我们的用户并不需要了解这其中的存储细节。
+
+1. 首先是我们的管理员要对共有的资源进行设置，让他们成为一个PV，一个PV能够描述这各资源在哪个位置，能够描述对该资源的读写权限
+2. 之后我们设置具体的PVC，我们需要设置我们需要什么样的资源，我们需要多大的空间，我们的权限是怎么样的。
+3. 之后我们可以在某个具体的pod中进行设置，我们需要什么样的资源请求，我们的资源请求之后，在pod中具体mount到哪一个文件夹之下。
+
+详情的一些细节文件的展示见[这里](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)。
+
+回到我们最开始的问题，我们需要的**PV dynamic provisioning support**所以我们需要进一步对我们的cluster进行设置。
+
+在这个地方我搞了两个晚上，我最终在values.yaml中对相应的storageclassname进行了指定，并且调整了其大小，另一方面，我对stanard名下的PV设置了两个，一个node-k02一个负责node-k03。
+
+我认为我应该还是没有完成一个动态PV的创建，但是鉴于我们的集群节点较小，则相对这样的配置还能接受。
+
+之后我按照[基本教程](https://github.com/tx19980520/new-tech-stack/blob/master/search%20engine/elasticsearch/elasticsearch.md)进行了基础的配置，发现其是可用的，则基本确立了我们ES部分上线成功

@@ -362,3 +362,19 @@ Persistent Volumes Claim(PVC) 可以简单的认为是一种资源的请求，�
 我认为我应该还是没有完成一个动态PV的创建，但是鉴于我们的集群节点较小，则相对这样的配置还能接受。
 
 之后我按照[基本教程](https://github.com/tx19980520/new-tech-stack/blob/master/search%20engine/elasticsearch/elasticsearch.md)进行了基础的配置，发现其是可用的，则基本确立了我们ES部分上线成功
+
+
+
+## 2019年4月6日实践——将wordladder不同版本放置
+
+我们决定将两位同学对wordladder的实现封装成容器，然后部署到我们的私有云上，组织一个流量分配，测试部署的难易程度。
+
+我们在wordladder文件夹下配置了如下几个yaml文件
+
+```bash
+wordladder
+-- wordladder-service.yaml # 负责具体pod对外暴露的service的声明和容器的部署
+-- wordladder-gateway.yaml # 负责监控整个服务的流量
+-- wordladder-virtualservice.yaml # 负责智能路由
+```
+

@@ -231,8 +231,14 @@ spec:
    
    kubectl create namespace istio-system
    kubectl apply -f istio.yaml# 我们自己的文件去istio的安装目录下去找
-   ### 
-   ### 
+### 如果发生helm install 停留时间非常长，且最终不成功的情况，应该是“网络不好”，我们的方案是换国内阿里源。 
+# 先移除原先的仓库
+helm repo remove stable
+# 添加新的仓库地址
+helm repo add stable https://kubernetes.oss-cn-hangzhou.aliyuncs.com/charts
+# 更新仓库
+helm repo update
+### 
    ```
 
    ## Istio
@@ -308,26 +314,6 @@ kubectl port-forward --namespace default svc/elastic-elasticsearch-coordinating-
 ### 上述代码卡住的时候请直接edit svc 来改成nodePort
    ```
 
-### kibana的helm安装
-
-```bash
-helm repo update
-helm install stable/kibana --version 2.2.0 -f values.yaml
-NOTES:
-To verify that kibana has started, run:
-
-  kubectl --namespace=default get pods -l "app=kibana"
-
-Kibana can be accessed:
-
-  * From outside the cluster, run these commands in the same shell:
-
-    export NODE_PORT=$(kubectl get --namespace default -o jsonpath="{.spec.ports[0].nodePort}" services kibana)
-    export NODE_IP=$(kubectl get nodes --namespace default -o jsonpath="{.items[0].status.addresses[0].address}")
-    echo http://$NODE_IP:$NODE_PORT
-
-```
-
 我们在得到了hello world的相关回应之后发现了另一个问题，elastic-elasticsearch-data-0这个pod一直是在pending的状态，我反过头去看配置的相关文档，发现了这里面的相关问题：
 
 ![PVCnotfound](./PVCnotfound.png)
@@ -376,5 +362,67 @@ wordladder
 -- wordladder-service.yaml # 负责具体pod对外暴露的service的声明和容器的部署
 -- wordladder-gateway.yaml # 负责监控整个服务的流量
 -- wordladder-virtualservice.yaml # 负责智能路由
+```
+
+## 2019年4月8日实践——在k03节点上单独部署mysql并尝试与其他服务进行连接
+
+我们首先准备使用mysql:5.7的官方数据库docker开始从scratch开始搭建，但是无奈不知道使该服务的pod保持active（或许真的是如同有些博客说的让内部系统一直sleep，但我们进行这一步的尝试），我最终决定使用helm的chart进行安装，为了保证一致性，并且我们暂不希望对数据库进行数据库集群的搭建，我们仅指定将我们的数据库服务部署在k03且只有一个pod。
+
+```bash
+kubectl label nodes k03 sql=yes
+# values.yaml
+mysqlRootPassword: temage
+mysqlDatabase: temage
+nodeSelector:# 该部分与我们的k03的标签是相同的，当然我们可以对几个的节点都设置这几个标签，这样就可以实现仅在这几个节点
+  sql: "yes"
+persistence:
+  storageClass: standard #许诺其使用standard的storage类型，下面都是10g的相关持久化卷，mysql需要一个空文件夹的来做卷，所以路径要稍微改改
+
+
+# default-storage-class.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: standard-pv2
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 10Gi
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/mysql" # 单独的一个文件夹给mysql使用
+```
+
+```bash
+helm install --name mysql -f mysql/values.yaml stable/mysql
+To get your root password run:
+
+    MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace default mysql -o jsonpath="{.data.mysql-root-password}" | base64 --decode; echo)
+
+To connect to your database:
+
+1. Run an Ubuntu pod that you can use as a client:
+
+    kubectl run -i --tty ubuntu --image=ubuntu:16.04 --restart=Never -- bash -il
+
+2. Install the mysql client:
+
+    $ apt-get update && apt-get install mysql-client -y
+
+3. Connect using the mysql cli, then provide your password:
+    $ mysql -h mysql -p
+
+To connect to your database directly from outside the K8s cluster:
+    MYSQL_HOST=127.0.0.1
+    MYSQL_PORT=3306
+
+    # Execute the following command to route the connection:
+    kubectl port-forward svc/mysql 3306
+
+    mysql -h ${MYSQL_HOST} -P${MYSQL_PORT} -u root -p${MYSQL_ROOT_PASSWORD}
+
 ```
 

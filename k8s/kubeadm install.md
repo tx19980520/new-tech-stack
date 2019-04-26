@@ -426,3 +426,21 @@ To connect to your database directly from outside the K8s cluster:
 
 ```
 
+到了这一步的情况下，我们最终只能在master中主动能进入到数据库中，但我们简单的测试之后发现我们的其他pod（建立了临时pod），却无法进入到mysql服务中去，我们设计的整个操作过程应该是使用kubernetes内部的DNS解析来进行联系，但是却发现无法进入到服务中，初步断定是数据库内部不允许其他IP进入到其中，但是我们forward到127.0.0.1之后却能在master上进行访问。我们现如今怀疑两点：
+
+1. DNS没起作用（但直接用IP和用DNS得到的报错居然是一样的）
+2. 数据库的设置出现了问题（server端或者是client端都有可能）
+
+## HorizontalPodAutoscaler
+
+![hpa](./hpa.png)
+
+我们之前要实现伸缩，我们需要主动的去往kubedashboard进行手动调整Pod数量，如果我们需要通过观测我们CPU的使用情况或者metrics达到一定规则时，我们的集群能够自动的讲该项服务进行扩展，以保证我们项目的正常工作。
+
+```bash
+kubectl autoscale deployment  --max=8 --min=2 --cpu-percent=80
+kubectl edit deployment wordladder-v1 #注意这里 我们需要去给pod写清楚具体的CPU和内存上限，不然不会去监测。
+
+```
+
+我们发现按照上述的操作仍旧是不能够进行监控的，道理是在于kubernetes 1.11以后的版本中将不再使用heapster插件来监控资源的使用状态，但是到了新的版本1.13.5的时候，你会发现这个metric-server才是新版本的监控资源服务，你需要到进行新的[配置](https://github.com/kubernetes-incubator/metrics-server/tree/master/deploy/1.8%2B)，你可以按照该[教程](https://blog.csdn.net/ygqygq2/article/details/82971338)进行配置，注意下镜像的版本，因为可能版本差异过大会造成问题（v0.3.1 和v0.3.2亲自试毒没有大区别）

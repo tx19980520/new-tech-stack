@@ -35,8 +35,7 @@ ElasticSearch（以下简称ES）是基于java开发的一套快速易上手的�
 由于elasticsearch的中文分词是单字分词，对中文的原生支持并不好，因此我们需要下载中文分词器
 
 ```shell
-./bin/elasticsearch-plugin install https://github.com/medcl/ela
-sticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.zip
+./bin/elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.zip
 #具体的版本号请到插件的github仓库中进行查看
 ```
 
@@ -63,83 +62,69 @@ sticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.
    ```curl
    PUT /temage/
    {
-     "settings":{
-       "number_of_shards": 3,   
-       "number_of_replicas": 1	
-     },
-     "mappings":{
-       "product":{
-         "properties":{
-           "title":{
-             "type":"text",
-             "analyzer": "ik_max_word",
-             "search_analyzer": "ik_max_word"
-           },
-           "style":{
-             "type":"keyword"
-           },
-           "ID":{
-             "type":"integer"
-           },
-         }
-       }
-     }
+   	"settings": {
+   		"number_of_shards": 3,
+   		"number_of_replicas": 1
+   	},
+   	"mappings": {
+   		"product": {
+   			"properties": {
+   				"title": {
+   					"type": "text",
+   					"analyzer": "ik_max_word",
+   					"search_analyzer": "ik_max_word"
+   				},
+   				"style": {
+   					"type": "keyword"
+   				},
+   				"ID": {
+   					"type": "integer"
+   				}
+   			}
+   		}
+   	}
    }
-   
+   # add
    POST /temage/product/
    {
-       "title": "xxxx",
-       "style": ["tech", "math"],
-       "ID": 1
+   	"title": "xxxx",
+   	"style": ["tech", "math"],
+   	"ID": 1
    }
-   
+   # search
    POST /temage/product/_search/
    {
-       "query": {
-           "bool": {
-               "should": [
-                   {
-                       "terms": {
-                           "style": [
-                               "math",
-                               "tech"
-                           ]
-                       }
-                   },
-                   {
-                       "match": {
-                           "title": "keywords"
-                       }
-                   }
-               ]
-           }
-       }
+   	"size": 10,
+   	"query": {
+   		"bool": {
+   			"should": [{
+   					"terms": {
+   						"style": ["xxxx"]
+   					}
+   				},
+   				{
+   					"match": {
+   						"title": {
+   							"query": "xxx",
+   							"fuzziness": "AUTO",
+   							"operator": "and"
+   						}
+   					}
+   				}
+   			]
+   		}
+   	}
    }
+   # delete
    POST /temage/product/_delete_by_query/
    {
-       "query":{
-           "match":{
-               "ID": 1
-           }
-       }
+   	"query": {
+   		"match": {
+   			"ID": 1
+   		}
+   	}
    }
    ```
-
-
-
-## postman测试
-
-我们最后使用postman进行测试，方便之后的接口提供，非常的方便，只需要将在body中写入在Kibana中原有的json字段即可。
-
-```json
-{
-    "query": {
-        "match": {
-            "address": "山东"
-        }
-    }
-}
-```
 
 ## python requests的使用
 
@@ -150,13 +135,20 @@ sticsearch-analysis-ik/releases/download/v6.5.4/elasticsearch-analysis-ik-6.5.4.
    官方在版本升级之后专门强调过传输的数据格式，如果你不按照正确的操作来进行，则会报如下的错误：
 
    ```json
-   {"error":
-    {"root_cause":
-     [{"type":"mapper_parsing_exception","reason":"failed to parse"}],
-     "type":"mapper_parsing_exception",
-     "reason":"failed to parse",
-     "caused_by":{"type":"not_x_content_exception","reason":"Compressor detection can only be called on some xcontent bytes or compressed xcontent bytes"}},
-    "status":400
+   {
+   	"error": {
+   		"root_cause": [{
+   			"type": "mapper_parsing_exception",
+   			"reason": "failed to parse"
+   		}],
+   		"type": "mapper_parsing_exception",
+   		"reason": "failed to parse",
+   		"caused_by": {
+   			"type": "not_x_content_exception",
+   			"reason": "Compressor detection can only be called on some xcontent bytes or compressed xcontent bytes"
+   		}
+   	},
+   	"status": 400
    }
    ```
 

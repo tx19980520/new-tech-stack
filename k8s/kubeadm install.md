@@ -39,13 +39,15 @@ kubernetes=1.13.5 kubedashboard=1.10.3  ubuntu 18.03
    gpg -a --export 6A030B21BA07F4FB | sudo apt-key add - #OK
    # 添加源对应的key
    sudo apt-get update
-   sudo apt-get install -y kubelet kubeadm kubectl
+   sudo apt-get install -y kubelet kubeadm
    ```
 
 ## master
 
 ```shell
-kubeadm init --pod-network-cidr=10.244.0.0/16 # 参数要求是flannel的要求
+sudo kubeadm reset
+# 如果是重装，执行上述命令
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16 # 参数要求是flannel的要求
 # 请记录下kubeadm join这行命令，用于后序方便的添加node
 ### 给予一般用户权限进行操作
 mkdir -p $HOME/.kube 
@@ -55,9 +57,9 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ###
 vim /etc/kubernetes/manifests/kube-apiserver.yaml
 command: 
---enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
-### 记得把老的那个没running的kube-apiserver给删了
-kubectl apply -f kube-flannel.yaml # 创建flannel
+- --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
+### 记得把老的那个没running的kube-apiserver给删了,上述的操作可以不做，主要是为了能够
+kubectl apply -f kube-flannel.yml # 创建flannel
 kubectl apply -f ssl-kube-dashboard.yaml # 创建dashboard
 kubectl -n kube-system edit service kubernetes-dashboard # 将dashboard改为NodePort的 type
 kubectl -n kube-system get service kubernetes-dashboard # 查看service的类型
@@ -73,6 +75,10 @@ https://<master-ip>:<apiserver-port> # 访问dashboard
 安装各插件的操作与master相同。
 
 ```bash
+ # master 上执行
+ scp ./config administrator@192.168.0.192:~/admin.conf
+ # node 上执行
+ sudo cp admin.conf /etc/kubernetes/admin.conf
 ### 首先将master节点上的./kube/config复制为该node节点上的/etc/kubernetes/admin.conf
 mkdir -p $HOME/.kube 
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -86,7 +92,7 @@ sudo kubeadm join xxx
 # 如果出现错误，大致是token的问题 在master上面使用kubeadm token create --print-join-command生成新的替换
 # 如果遇到“kubelet-config-1.14" is forbidden: User "system:bootstrap:gmt42b" cannot get resource "configmaps" in API group "" in the namespace "kube-system"请核对你master上的kubeadm、kubectl、kubelet的版本号和node节点上的一不一样，下载正确的版本
 # 版本号非常的奇特是x.xx.x-00
-# 似乎kubeadm可以直接
+# 似乎kubeadm可以直接降级upgrade
 ### 如果节点已经加入到了集群中，如果仍旧是notready的状态，那我们需要debug就可以看日志
 journalctl -u kubelet
 ###
@@ -97,7 +103,7 @@ journalctl -u kubelet
 
 docker pull quay.io/coreos/flannel:v0.10.0-amd64 
 mkdir -p /etc/cni/net.d/
-cat <<EOF> /etc/cni/net.d/10-flannel.conf
+sudo cat <<EOF> /etc/cni/net.d/10-flannel.conf
 {"name":"cbr0","type":"flannel","delegate": {"isDefaultGateway": true}}
 EOF
 mkdir /usr/share/oci-umount/oci-umount.d -p
@@ -227,11 +233,16 @@ spec:
    helm init --service-account tiller --skip-refresh # 通过helm的init创建tiller
    ###
    ### 但是我直接装没发现怎么装istio-injector，找了个博客去生成模板去create istio.yaml
+   # 
    helm template install/kubernetes/helm/istio --name istio --namespace istio-system --set sidecarInjectorWebhook.enabled=true --set ingress.service.type=NodePort --set gateways.istio-ingressgateway.type=NodePort --set gateways.istio-egressgateway.type=NodePort --set tracing.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.jaeger.enabled=true --set grafana.enabled=true > istio.yaml
    
    kubectl create namespace istio-system
+   kubectl apply -f ./install/kubernetes/helm/istio-init/files/crd-11.yaml
+   kubectl apply -f ./install/kubernetes/helm/istio-init/files/crd-certmanager-10.yaml
+   kubectl apply -f ./install/kubernetes/helm/istio-init/files/crd-10.yaml
    kubectl apply -f istio.yaml# 我们自己的文件去istio的安装目录下去找
-### 如果发生helm install 停留时间非常长，且最终不成功的情况，应该是“网络不好”，我们的方案是换国内阿里源。 
+### 如果发生helm install 停留时间非常长，且最终不成功的情况，应该是“网络不好”，我们的方案是换国内阿里源。
+# 可能安装的中途会有些报错，这个是启动的先后顺序的问题，等一会就好了
 # 先移除原先的仓库
 helm repo remove stable
 # 添加新的仓库地址
@@ -240,6 +251,22 @@ helm repo add stable https://kubernetes.oss-cn-hangzhou.aliyuncs.com/charts
 helm repo update
 ### 
    ```
+
+## HorizontalPodAutoscaler
+
+![hpa](D:/new-tech-stack/k8s/hpa.png)
+
+我们之前要实现伸缩，我们需要主动的去往kubedashboard进行手动调整Pod数量，如果我们需要通过观测我们CPU的使用情况或者metrics达到一定规则时，我们的集群能够自动的讲该项服务进行扩展，以保证我们项目的正常工作。
+
+```bash
+kubectl autoscale deployment  --max=8 --min=2 --cpu-percent=80
+kubectl edit deployment wordladder-v1 #注意这里 我们需要去给pod写清楚具体的CPU和内存上限，不然不会去监测。
+
+```
+
+我们发现按照上述的操作仍旧是不能够进行监控的，道理是在于kubernetes 1.11以后的版本中将不再使用heapster插件来监控资源的使用状态，但是到了新的版本1.13.5的时候，你会发现这个metric-server才是新版本的监控资源服务，你需要到进行新的[配置](https://github.com/kubernetes-incubator/metrics-server/tree/master/deploy/1.8%2B)，你可以按照该[教程](https://blog.csdn.net/ygqygq2/article/details/82971338)进行配置，注意下镜像的版本，因为可能版本差异过大会造成问题（v0.3.1 和v0.3.2亲自试毒没有大区别）
+
+
 
    ## Istio
 
@@ -362,6 +389,8 @@ wordladder
 -- wordladder-service.yaml # 负责具体pod对外暴露的service的声明和容器的部署
 -- wordladder-gateway.yaml # 负责监控整个服务的流量
 -- wordladder-virtualservice.yaml # 负责智能路由
+kubectl edit svc -n istio-system istioingressgateway
+### 修改http内部对应的端口，默认是31380，改成你能暴露的。
 ```
 
 ## 2019年4月8日实践——在k03节点上单独部署mysql并尝试与其他服务进行连接
@@ -431,16 +460,17 @@ To connect to your database directly from outside the K8s cluster:
 1. DNS没起作用（但直接用IP和用DNS得到的报错居然是一样的）
 2. 数据库的设置出现了问题（server端或者是client端都有可能）
 
-## HorizontalPodAutoscaler
+注，上述操作暂时只是理论上的成功，实践操作上仍旧处于失败状态，由于时间关系没有进一步研究。
 
-![hpa](./hpa.png)
+我开始探究是不是DNS的相关问题，我在POD里面ping能ping通外网，但是无法ping通我们自己服务器的端口，且会出现wget connection reset by peer 的情况，我决定回头去检查一下Istio当时提供的bookinfo例子里面是不是有什么细节被我遗漏了，我们需要重新温习一下。
 
-我们之前要实现伸缩，我们需要主动的去往kubedashboard进行手动调整Pod数量，如果我们需要通过观测我们CPU的使用情况或者metrics达到一定规则时，我们的集群能够自动的讲该项服务进行扩展，以保证我们项目的正常工作。
+## 熔断机制的wordladder实验
 
-```bash
-kubectl autoscale deployment  --max=8 --min=2 --cpu-percent=80
-kubectl edit deployment wordladder-v1 #注意这里 我们需要去给pod写清楚具体的CPU和内存上限，不然不会去监测。
+我们准备通过wordladder来实践熔断机制，因为wordladder是前后端分离的，因此我们的调用链天然的是前端调用后端，我们设置一定的条件，在后端长时间未响应后，我们对其进行熔断，保证用户能够搜索单词，但是不允许进行BFS。
+
+我的相应配置文件如下：
+
+```yaml
 
 ```
 
-我们发现按照上述的操作仍旧是不能够进行监控的，道理是在于kubernetes 1.11以后的版本中将不再使用heapster插件来监控资源的使用状态，但是到了新的版本1.13.5的时候，你会发现这个metric-server才是新版本的监控资源服务，你需要到进行新的[配置](https://github.com/kubernetes-incubator/metrics-server/tree/master/deploy/1.8%2B)，你可以按照该[教程](https://blog.csdn.net/ygqygq2/article/details/82971338)进行配置，注意下镜像的版本，因为可能版本差异过大会造成问题（v0.3.1 和v0.3.2亲自试毒没有大区别）

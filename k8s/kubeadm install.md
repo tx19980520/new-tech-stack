@@ -316,7 +316,7 @@ kubectl edit deployment wordladder-v1 #注意这里 我们需要去给pod写清�
 
    ### bookinfo示例的使用过程
 
-   ![reviews-v1](./reviews-v1.png)
+![reviews-v1](./reviews-v1.png)
 
    ![reviews-v2](./reviews-v2.png)
 
@@ -391,6 +391,8 @@ wordladder
 -- wordladder-virtualservice.yaml # 负责智能路由
 kubectl edit svc -n istio-system istioingressgateway
 ### 修改http内部对应的端口，默认是31380，改成你能暴露的。
+### 其实是在你使用helm的时候生成那个template的时候就可以改清楚的，但是我们仍旧是根据一个摸索的角度来记的这个流水账。
+### 后序我们将gateway搬迁到了外层的gateway文件夹中，因为不只是说serverb，需要，我们要一个全局的gateway
 ```
 
 ## 2019年4月8日实践——在k03节点上单独部署mysql并尝试与其他服务进行连接
@@ -464,13 +466,6 @@ To connect to your database directly from outside the K8s cluster:
 
 我开始探究是不是DNS的相关问题，我在POD里面ping能ping通外网，但是无法ping通我们自己服务器的端口，且会出现wget connection reset by peer 的情况，我决定回头去检查一下Istio当时提供的bookinfo例子里面是不是有什么细节被我遗漏了，我们需要重新温习一下。
 
-## 熔断机制的wordladder实验
+## 熔断机制的Temage压力测试
 
-我们准备通过wordladder来实践熔断机制，因为wordladder是前后端分离的，因此我们的调用链天然的是前端调用后端，我们设置一定的条件，在后端长时间未响应后，我们对其进行熔断，保证用户能够搜索单词，但是不允许进行BFS。
-
-我的相应配置文件如下：
-
-```yaml
-
-```
-
+我们Temage是通过servera调用serverb进行工作的，serverb是一个大功率的服务，当用户数量有一定程度上升时，为保证用户使用质量，我们将对服务进行扩容；当用户对serverb的请求达到阈值时，我们为保证整个servera的性能，将对serverb进行熔断。

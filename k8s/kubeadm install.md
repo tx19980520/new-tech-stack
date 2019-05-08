@@ -55,7 +55,7 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ###
 ###
-vim /etc/kubernetes/manifests/kube-apiserver.yaml
+sudo vim /etc/kubernetes/manifests/kube-apiserver.yaml
 command: 
 - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
 ### 记得把老的那个没running的kube-apiserver给删了,上述的操作可以不做，主要是为了能够
@@ -97,6 +97,7 @@ sudo kubeadm join xxx
 journalctl -u kubelet
 ###
 # 常见的错误是node服务器上面的网络设置出现问题，可以通过我们之前设置的dashboard查看错误
+## 注意下这个node里面也是要安装proxy和pause的镜像
 
 
 ### Container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:docker
@@ -117,7 +118,9 @@ EOF
 kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.9.1/Documentation/kube-flannel.yml
 ### flannel 没装没配置
 ### 如果报pull image相关的错误，详见前方的通用操作。
-### 建议在join之前先直接把flannel装好就差不多了
+# 如果你发现出现一些cni方面的错误，可能是上一次的一些东西没有能够得到清理，注意清理一下ip方面的设置
+ip link delete cni0
+ip link delete flannel.1
 ```
 
 ### node使用nodeport简易部署一个nginx服务
@@ -240,7 +243,8 @@ spec:
    kubectl apply -f ./install/kubernetes/helm/istio-init/files/crd-11.yaml
    kubectl apply -f ./install/kubernetes/helm/istio-init/files/crd-certmanager-10.yaml
    kubectl apply -f ./install/kubernetes/helm/istio-init/files/crd-10.yaml
-   kubectl apply -f istio.yaml# 我们自己的文件去istio的安装目录下去找
+   
+   # 我们自己的文件去istio的安装目录下去找
 ### 如果发生helm install 停留时间非常长，且最终不成功的情况，应该是“网络不好”，我们的方案是换国内阿里源。
 # 可能安装的中途会有些报错，这个是启动的先后顺序的问题，等一会就好了
 # 先移除原先的仓库
@@ -336,7 +340,8 @@ helm搭建集群非常类似于npm
 
    ```bash
 helm repo add bitnami https://charts.bitnami.com # 添加仓库
-helm install --name elastic -f values.yaml bitnami/elasticsearch # 按照values.yaml自定义属性进行安装
+helm install --name elastic -f values.yaml bitnami/elasticsearch --version 4.2.10# 按照values.yaml自定义属性进行安装
+## 注意一下ES在7.0之后的语法有些神奇的变化。
 kubectl port-forward --namespace default svc/elastic-elasticsearch-coordinating-only 9200:9200 #将api的端口暴露出去
 ### 上述代码卡住的时候请直接edit svc 来改成nodePort
    ```

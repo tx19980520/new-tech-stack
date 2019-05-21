@@ -383,17 +383,20 @@ Persistent Volumes Claim(PVC) 可以简单的认为是一种资源的请求，�
 
 
 
-## 2019年4月6日实践——将wordladder不同版本放置
+## 2019年4月6日实践——将server不同版本放置
 
-我们决定将两位同学对wordladder的实现封装成容器，然后部署到我们的私有云上，组织一个流量分配，测试部署的难易程度。
+我们决定将两位同学对rserver的实现封装成容器，然后部署到我们的私有云上，组织一个流量分配，测试部署的难易程度。
 
-我们在wordladder文件夹下配置了如下几个yaml文件
+我们在server文件夹下配置了如下几个yaml文件
 
 ```bash
-wordladder
--- wordladder-service.yaml # 负责具体pod对外暴露的service的声明和容器的部署
--- wordladder-gateway.yaml # 负责监控整个服务的流量
--- wordladder-virtualservice.yaml # 负责智能路由
+back-end
+-- backend-rule.yaml
+-- backend-service.yaml
+-- backend-servicea.yaml
+-- backend-serviceb.yaml
+-- servera-rule.yaml
+-- servera-virtualservice.yaml
 kubectl edit svc -n istio-system istioingressgateway
 ### 修改http内部对应的端口，默认是31380，改成你能暴露的。
 ### 其实是在你使用helm的时候生成那个template的时候就可以改清楚的，但是我们仍旧是根据一个摸索的角度来记的这个流水账。
@@ -474,3 +477,16 @@ To connect to your database directly from outside the K8s cluster:
 ## 熔断机制的Temage压力测试
 
 我们Temage是通过servera调用serverb进行工作的，serverb是一个大功率的服务，当用户数量有一定程度上升时，为保证用户使用质量，我们将对服务进行扩容；当用户对serverb的请求达到阈值时，我们为保证整个servera的性能，将对serverb进行熔断。
+
+### kubernetes进行CI/CD
+
+现目前准备实现的架构为，就将gitlab置于整个集群的外部，我们暴露kubeapiserver进行一个部署的操作
+
+```bash
+kubectl proxy --address='0.0.0.0' --port=30001 --accept-hosts='.*'
+# 由于改6443太过于麻烦，要改的地方很多，所以我们选择使用代理的方式
+```
+
+### 有关于serverb在服务器上进行工作的效率低的问题
+
+serverb在dell g7的本地进行工作，运行的时间在8秒左右，在服务器上位18秒左右，在本地load模型需要0.8s，在集群上load模型的时间为4.8s差距较大，我们将从CPU、磁盘读取来进一步分析这样问题的根本原因。

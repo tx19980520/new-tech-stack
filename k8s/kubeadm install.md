@@ -490,3 +490,50 @@ kubectl proxy --address='0.0.0.0' --port=30001 --accept-hosts='.*'
 ### 有关于serverb在服务器上进行工作的效率低的问题
 
 serverb在dell g7的本地进行工作，运行的时间在8秒左右，在服务器上位18秒左右，在本地load模型需要0.8s，在集群上load模型的时间为4.8s差距较大，我们将从CPU、磁盘读取来进一步分析这样问题的根本原因。
+
+#### CPU
+
+集群上使用的cpu为Xeon E5 2630，共11个核心，本地使用的CPU为i7-8750H，在这个方面，我们可以查到如下的跑分结果：
+
+![cpu-e5](./cpu-e5.png)
+
+![cpu-i7](./cpu-i7.png)
+
+我们可以看到E5-2630在单核上是比不过i7，大致的性能比在0.5:1，但是我们在服务器上给予其12核，且观察到12核都已经在使用状态，并且加核能够稳定的剪短我们的响应时间，但我们同时也观察到，加核无法做到降低load模型的时间，这是一个非常值得注意的地方，我们需要进一步对磁盘进行分析和对比。
+
+#### 磁盘IO
+
+![hard-disk-d](./hard-disk-d.png)
+
+![hard-disk-server](./hard-disk-server.png)
+
+我们发现磁盘读取的速度和本地笔记本的效率相近，甚至更好，本地的服务仅需要启动一次模型即可，第二次不会重新加载模型，而服务器端。
+
+```bash
+curl localhost:8000/embedding -X POST -H "Content-Type:application/json" -d '{"text":"dajdsfal!"}'
+```
+
+我们仅仅使用上述，在pod中直接测试，基本没有kubernetes和istio在转发过程中的损耗，但是模型的load的时间仍旧为4s，时间稳定在25秒左右。
+
+开始怀疑是不是docker镜像里面可能存在相应的问题，导致其性能不佳，我们尝试在本机使用docker进行工作。
+
+我们在本机进行核数量的调控
+
+4core，总时间为12s
+
+![load-4core](D:\new-tech-stack\k8s\load-4core.png)
+
+6core 总时间为10s
+
+![load-6core](D:\new-tech-stack\k8s\load-6core.png)
+
+10core 总时间为8s
+
+![load-10core](D:\new-tech-stack\k8s\load-10core.png)
+
+首先是在其中发现，在整个加载的过程中，核不是关键，在计算过程中核确实是关键，核越多计算越快，我们check了虚拟机的硬盘读取速度，与服务器上硬盘读取速度相近。
+
+我首先还是认为这是服务器上虚拟机的overhead造成的，因为我本地的core相同的情况下，不仅是load模型还是后序的计算，都有比较明显的差距，进一步的讨论应该是在服务器裸机上跑和虚拟机里面跑进行区别。
+
+综上所述，我认为性能瓶颈在cpu核心数量和质量，以及是否使用虚拟机上。
+

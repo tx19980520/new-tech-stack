@@ -24,5 +24,13 @@ Topics: 逻辑概念，一个topic可以认为是一类消息，每个topic可�
 
 按照[官方](<https://kafka.apache.org/quickstart>)给出的教程跑是没有问题的，只要注意我们在windows下面需要的我们去使用bin/windows即可，其余的不需要太过担心。
 
-### 利用springboot调用Kafka
+### 利用spring boot调用Kafka
+
+#### 主要考虑实现一个producer-consumer的模型
+
+拿库写两个类就好，consumer这边当做一个小的server就好。
+
+### kubernetes集群的部署与操作
+
+考虑使用helm进行安装
 

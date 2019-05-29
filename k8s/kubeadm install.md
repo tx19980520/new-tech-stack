@@ -381,7 +381,16 @@ Persistent Volumes Claim(PVC) 可以简单的认为是一种资源的请求，�
 
 之后我按照[基本教程](https://github.com/tx19980520/new-tech-stack/blob/master/search%20engine/elasticsearch/elasticsearch.md)进行了基础的配置，发现其是可用的，则基本确立了我们ES部分上线成功
 
+#### dynamic provisioning support
 
+在2019年5月29日我最终知道了这个操作应该如何实现比较方便和科学，我们购买了阿里云的NAS服务，并在其上搭建了一个NFS(Network File System)服务。
+![aliyun-nfs](./aliyun-nfs.png)
+
+之后我们使用helm生成nfs对应的storageclass，主要的values.yaml的文件如下：
+
+![nfs-values](D:\new-tech-stack\k8s\nfs-values.png)
+
+之后直接使用相应的storagename即可
 
 ## 2019年4月6日实践——将server不同版本放置
 

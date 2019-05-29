@@ -546,3 +546,18 @@ curl localhost:8000/embedding -X POST -H "Content-Type:application/json" -d '{"t
 
 综上所述，我认为性能瓶颈在cpu核心数量和质量，以及是否使用虚拟机上。
 
+### StatefulSet的使用简介
+
+Deployment面向的是无状态的服务，他们所管理的Pod的IP、名字和启停都是随机的，但是对于一些服务，我们希望他是长期的、稳定的，即便是在重启的情况下，也应该是使用原有的文件或者使用备份文件。为满足这样的需求，我们开始使用StatefulSet来替换Deployment。
+
+StatefulSet从功能上就能够看出，是Deployment的一种变体，它所管理的Pod具有固定的Pod名称和启停顺序，Pod的名字被称为网络标识(hostname)。
+
+在Deployment中，与之对应的服务是service，而在StatefulSet中与之对应的headless service，headless service，即无头服务，与service的区别就是它没有Cluster IP，解析它的名称时将返回该Headless Service对应的全部Pod的Endpoint列表。
+除此之外，StatefulSet在Headless Service的基础上又为StatefulSet控制的每个Pod副本创建了一个DNS域名，这个域名的格式为：
+
+```bash
+$(podname).(headless server name)   
+FQDN： $(podname).(headless server name).namespace.svc.cluster.local
+```
+
+之后将会把我们的数据库改成StatefulSet，并且逐步实现主从数据库

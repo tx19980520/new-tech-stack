@@ -34,3 +34,7 @@ Topics: 逻辑概念，一个topic可以认为是一类消息，每个topic可�
 
 考虑使用helm进行安装
 
+![zookeeper-false](./zookeeper-false.png)
+
+发现原有的values.yaml里面存在着说是关闭了zookeeper的情况，我们可能需要进行相应的操作，并不清楚是否是准备直接和kafka进行直接交互还是说我们把zookeeper和kafka分离开来。
+

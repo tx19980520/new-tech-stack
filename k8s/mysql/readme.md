@@ -330,3 +330,52 @@ A与B为主主复制，C为A的slave，则我们会发现C的更新只来源于A
              storage: 10Gi
    ```
 
+### 使用上述教程出现问题的情况
+
+根本原因是Istio不支持statefulset的原因，详见[这里](<https://github.com/istio/istio/issues/10659>)。
+
+会导致的现象如下：
+
+1. 文件丢失
+
+   ![aliyun-log](./aliyun-log.png)
+
+   ![diff](./diff.png)
+
+   主要是图中的一个xtrabackup_checkpoints，主要是这个文件丢失。这个错误发生在上述的clone-mysql步骤中，所以其实slave还没有生成出来，所以我也看不到具体内部的情况（其实还是希望能看到尸体，但是不知道怎么做）。
+
+   正常的log如下
+
+   ![202-log](./202-log.png)
+
+2. 发现如果我们replica = 1，没有slave数据库，应该能够使用，但是仍旧是无法服务发现。
+
+   ![service-cannot-connect](./service-cannot-connect.png)
+
+我们最终验证是Istio不支持statefulset的方式为使用控制变量法：
+
+1. 由于是文件问题，我们主要先测试是不是PV的问题
+
+   我们首先是把PV从NFS改到了本地local，这样我们才最终确定了是缺失了文件，当然是没有存在说情况有所改变
+
+2. 由于服务发现也存在问题，我们按照[教程](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)进行学习，看是否有能够修正的
+
+   当然是发现POD里面的DNS是是写入了`/etc/hosts`中的，DNS应该不存在问题
+
+3. 决定进行降级的部署，使用deployment进行部署
+
+   我们切换会deployment进行部署，从service进去，发现是ok的
+
+4. 最终决定先直接将环境完全切换，切换到202学校集群（因为两个服务器的初始化方式不一样）。
+
+   在202集群上直接部署成功，但是忽然想起来在202上因为重装，我没有装Istio
+
+5. 在阿里云服务器上的mysql namespace上进行部署
+
+   同样直接成功，于是基本就断定了是Istio的问题
+
+## Istio的问题根源
+
+我们查找了相关的github上的isssue之后，我们发现主要这些解决方案里面出现的关键词主要为**`MTLS ServiceEntry MeshPolicy DestinationRule`**
+
+我们就这几点准备再复习下再看一看ISSUE，似乎是和mTLS有关

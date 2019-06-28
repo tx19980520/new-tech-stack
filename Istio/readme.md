@@ -78,3 +78,18 @@ $ kubectl -n istio-system logs -l istio-mixer-type=telemetry -c mixer | grep 'ht
 
 相互传输层安全性协议是指在服务（器）到服务（器）的连接依赖使用MTLS进行身份验证，发出消息的服务器和接收消息的服务器交换相互信任的CA证书。证书可向一台服务器证明另一台服务器的身份。简单的go实现可以看[这里](https://venilnoronha.io/a-step-by-step-guide-to-mtls-in-go)
 
+这个[博客](https://codeburst.io/how-mutual-tls-work-aec3d91451ce)仍旧使用alice和bob的例子讲述了MTLS的实际操作，整个过程一共传递了三次，信息上面最多存在两把锁。
+
+| NAME                                  | CDS    | LDS    | EDS          | RDS    | PILOT                        | VERSION |
+| ------------------------------------- | ------ | ------ | ------------ | ------ | ---------------------------- | ------- |
+| molecule-web-5bc489fb8c-ngb6m.default | SYNCED | SYNCED | SYNCED (50%) | SYNCED | istio-pilot-58974b9b89-np577 | 1.1.3   |
+
+
+
+| 服务       | Envoy API |
+| ---------- | --------- |
+| 服务发现   | EDS       |
+| 负载均衡池 | CDS       |
+| 路由表     | RDS       |
+| 发现服务   | LDS       |
+

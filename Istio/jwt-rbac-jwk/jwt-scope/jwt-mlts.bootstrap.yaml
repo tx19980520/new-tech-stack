@@ -1,0 +1,14 @@
+apiVersion: "authentication.istio.io/v1alpha1"
+kind: "Policy"
+metadata:
+  name: "require-mtls-jwt"
+spec:
+  targets:
+  - name: httpbin
+  peers:
+  - mtls: {}
+  origins:
+  - jwt:
+      issuer: "casecloud.com.cn"
+      jwksUri: "https://raw.githubusercontent.com/tx19980520/new-tech-stack/master/Istio/jwks-pub.json"
+  principalBinding: USE_ORIGIN

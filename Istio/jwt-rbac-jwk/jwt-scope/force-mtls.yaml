@@ -1,0 +1,23 @@
+apiVersion: "authentication.istio.io/v1alpha1"
+kind: "Policy"
+metadata:
+  name: "example-httpbin-strict"
+  namespace: rbac-scope-test
+spec:
+  targets:
+  - name: httpbin
+  peers:
+  - mtls:
+      mode: STRICT
+---
+apiVersion: "authentication.istio.io/v1alpha1"
+kind: "Policy"
+metadata:
+  name: "example-sleep-strict"
+  namespace: rbac-scope-test
+spec:
+  targets:
+  - name: sleep
+  peers:
+  - mtls:
+      mode: STRICT

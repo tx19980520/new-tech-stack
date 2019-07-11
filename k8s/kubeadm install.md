@@ -260,7 +260,7 @@ helm repo update
 
 ## HorizontalPodAutoscaler
 
-![hpa](D:/new-tech-stack/k8s/hpa.png)
+![hpa](./hpa.png)
 
 我们之前要实现伸缩，我们需要主动的去往kubedashboard进行手动调整Pod数量，如果我们需要通过观测我们CPU的使用情况或者metrics达到一定规则时，我们的集群能够自动的讲该项服务进行扩展，以保证我们项目的正常工作。
 

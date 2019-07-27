@@ -379,3 +379,22 @@ A与B为主主复制，C为A的slave，则我们会发现C的更新只来源于A
 我们查找了相关的github上的isssue之后，我们发现主要这些解决方案里面出现的关键词主要为**`MTLS ServiceEntry MeshPolicy DestinationRule`**
 
 我们就这几点准备再复习下再看一看ISSUE，似乎是和mTLS有关
+
+### 7月18日更新
+
+根据[FAQ](https://istio.io/faq/security/#mysql-with-mtls)，发现确实是和mTLS有关，采取的解决方式也是有都有strict的方式，要么直接禁用mTLS。
+
+## mysql日志mysql 日志记录
+
+运维的一个重要部分就是进行日志的采集，对此mysql作为存储数据的地方，我们对mysql的日志应当进行详细的记录。
+
+mysql存在三种日志
+
+**error log**： 主要负责数据库中错误的记录，报错数据库开启和关闭，数据量相对而言不会很大
+
+**general query log**：包含所有的语句的记录，数据量较大，并不适合采集，并且比较影响数据库的性能。
+
+**bin log**：包含所有更改数据的语句，性能影响小，主要是用于数据库恢复和数据库主从复制
+
+bin log在我们的主从数据库上已经有所体现，因此，我们仅需要收集err log即可。
+

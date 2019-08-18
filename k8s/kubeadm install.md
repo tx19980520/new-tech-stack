@@ -60,7 +60,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 sudo vim /etc/kubernetes/manifests/kube-apiserver.yaml
 command: 
 - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
-### 记得把老的那个没running的kube-apiserver给删了,上述的操作可以不做，主要是为了能够
+### manifest 的文件是改了直接映射的，不需要apply
 kubectl apply -f kube-flannel.yml # 创建flannel
 kubectl apply -f ssl-kube-dashboard.yaml # 创建dashboard
 kubectl -n kube-system edit service kubernetes-dashboard # 将dashboard改为NodePort的 type

@@ -46,5 +46,8 @@ nginx做IP层级的封禁的主要子任务是访问次数统计和黑名单存�
 
 ### 爬虫访问
 
-模拟异常用户
+模拟异常用户进行
 
+## 重新开始考虑Istio来进行动态IP封禁
+
+Istio 1.3.0有相关的介绍是关于在Envoy Filter中开启remote_address，详情课查看[wiki](https://github.com/istio/istio/wiki/EnvoyFilter-Samples#use-remote-address-and-xff-num-trust-hops)。但是我们暂时无法得知对于相关存储问题，Envoy中能够使用什么样的方式来进行解决，需要更加详细的了解才行。

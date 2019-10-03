@@ -1,0 +1,32 @@
+# JMeter 分布式压力测试
+
+为了突破单机测试的性能局限性，我们将启用集群进行更进一步的压力测试，用以提供更加全面和更深层次的测试结果。
+
+## JMeter各远端服务器的配置
+
+```bash
+sudo apt-get install default-jre
+wget http://mirrors.tuna.tsinghua.edu.cn/apache//jmeter/binaries/apache-jmeter-5.1.1.tgz
+tar -zxvf apache-jmeter-5.1.1.tgz
+```
+
+配置文件中主要关注的部分如下
+
+```properties
+# Set this if you don't want to use SSL for RMI, 一般我们测试情况就不开SSL
+server.rmi.ssl.disable=true 
+# 有关于你远端调用的IP or DNS
+remote_hosts=node2,node3,node4
+# 远端服务具体的port，最好指定，不然会是随机的端口，防火墙不好设置
+server.rmi.localport=3030
+# Set this if you don't want to use SSL for RMI 作为测试关闭RMI的SSL
+server.rmi.ssl.disable=true
+# 有的博文里面说改成false，但是这样我的jmeter-server就启动不了，原因不明。
+server.rmi.create=true
+```
+
+之后先启动各slave节点的jmeter-server，等待我们的controller调度
+
+```
+./jmeter-server
+```

@@ -27,6 +27,22 @@ server.rmi.create=true
 
 之后先启动各slave节点的jmeter-server，等待我们的controller调度
 
-```
+```bash
 ./jmeter-server
+Using local port: 3030
+Created remote object: UnicastServerRef2 [liveRef: [endpoint:[10.0.0.24:3030](local),objID:[-300bb601:16d8b3a7c1c:-7fff, 12160871764474459]]]
 ```
+
+之后我们的在controller node(node1)运行相应的jmx（注意测试汇总最好是直接指定好汇总报告和聚合报告，再通过jtl生成相应的report html，这样的report html才是通过所有数据得出的，不然会存在各自的报告存在同一文件夹下的not empty的问题）
+
+启动测试`./jmeter -n -t path/to/jmx/test.jmx -R node4,node3,node2 `
+
+在各节点上看到的log如下：
+
+```bash
+Starting the test on host node2 @ Wed Oct 02 07:03:53 UTC 2019 (1569999833859)
+Finished the test on host node2 @ Wed Oct 02 07:07:19 UTC 2019 (1570000039577)
+Starting the test on host node2 @ Wed Oct 02 07:42:27 UTC 2019 (1570002147889)
+Finished the test on host node2 @ Wed Oct 02 07:42:38 UTC 2019 (1570002158085)
+```
+

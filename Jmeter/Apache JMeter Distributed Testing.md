@@ -46,3 +46,6 @@ Starting the test on host node2 @ Wed Oct 02 07:42:27 UTC 2019 (1570002147889)
 Finished the test on host node2 @ Wed Oct 02 07:42:38 UTC 2019 (1570002158085)
 ```
 
+## 补充
+
+[这里](https://hub.helm.sh/charts/stable/distributed-jmeter)是JMeter在helm上准备的一个chart，有兴趣可以直接使用这套进行配置，但是可能相应的网络结构需要自己更加多的注意，并且我们的测试可能只是在多台服务器上，而不限于是在集群中，其实用性还有待考证。

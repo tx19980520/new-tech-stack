@@ -185,4 +185,3 @@ Weatherspoon H, Kubiatowicz J D. Erasure coding vs. replication: A quantitative 
 Weil S A, Brandt S A, Miller E L, et al. CRUSH: Controlled, scalable, decentralized placement of replicated data[C]//SC'06: Proceedings of the 2006 ACM/IEEE Conference on Supercomputing. IEEE, 2006: 31-31.
 
 [《glusterfs：优秀开源分布式存储系统》](https://zhuanlan.zhihu.com/p/45060910)
-

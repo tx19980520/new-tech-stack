@@ -66,3 +66,4 @@ NewDeploy和knative的KPA比较相近，可以在Pod数量和cpu两个角度进�
 ```
 ### Fission Environment Prepare
 Fission将environment和code两者进行了分离，我们环境可以通过image直接创建，而对于代码，则使用mount将相应的二进制文件或脚本置入 environment Pod中，完成特化。这样的好处在于，使用PoolManager来管理环境，可以进行复用，但是这样的话，两个function在性能层面上将会存在一些依赖，这也是需要进行探讨
+

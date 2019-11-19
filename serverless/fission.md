@@ -552,3 +552,396 @@ func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq types.Functi
 
 `/specialize`的具体实现是跟环境有关的，我们在fission的具体repo里面可以看到语言相关的实现，即，fission里面的env启动的时候的指令其实是运行了一个server，比如nodejs环境的[代码](https://github.com/fission/fission/blob/ef8289ff73fa3503466f76e0902e11aa7b5792c7/environments/nodejs/server.js)
 
+### Trigger
+
+![trigger](./images/trigger.png)
+
+![four-types](https://github.com/cncf/wg-serverless/blob/master/whitepapers/serverless-overview/image_3.png?raw=true)
+
+fission的trigger机制如上，主要是四种，最终都是通过forward到router来统一进行与worker pod的交互。上述的四种工作方式是在[serverless白皮书](https://github.com/cncf/wg-serverless/tree/master/whitepapers/serverless-overview)上提到的四种方式。我们对每一种方式都在fission上进行下讨论。
+
+### Synchronous Req/Rep
+
+主要针对的是网络相关的服务，这个地方比较常用的部分应该是短网址服务，加密服务等，是最直接的trigger router的方式。
+
+HTTP trigger的主要实现是依靠`mux`来进行实现的，`mux`的功能就是一个注册路由，我们会对每一个trigger来生成一个对应的路由注册在`mux`中
+
+```go
+
+/pkg/router/httpTriggers.go
+for _, function := range ts.functions {
+		m := function.Metadata
+
+		var recorderName string
+		recorder, err := ts.recorderSet.functionRecorderMap.lookup(m.Name)
+		if err == nil && recorder != nil {
+			recorderName = recorder.Spec.Name
+		}
+
+		fh := &functionHandler{
+			logger:                 ts.logger.Named(m.Name),
+			fmap:                   ts.functionServiceMap,
+			frmap:                  ts.recorderSet.functionRecorderMap,
+			trmap:                  ts.recorderSet.triggerRecorderMap,
+			function:               &m,
+			executor:               ts.executor,
+			tsRoundTripperParams:   ts.tsRoundTripperParams,
+			recorderName:           recorderName,
+			isDebugEnv:             ts.isDebugEnv,
+			svcAddrUpdateThrottler: ts.svcAddrUpdateThrottler,
+		}
+		muxRouter.HandleFunc(utils.UrlForFunction(function.Metadata.Name, function.Metadata.Namespace), fh.handler)
+	}
+
+	// Healthz endpoint for the router.
+	muxRouter.HandleFunc("/router-healthz", routerHealthHandler).Methods("GET")
+
+	return muxRouter
+// pkg/router/functionHandler.go
+func (fh functionHandler) handler(responseWriter http.ResponseWriter, request *http.Request) {
+	if fh.httpTrigger != nil && fh.httpTrigger.Spec.FunctionReference.Type == types.FunctionReferenceTypeFunctionWeights {
+		// canary deployment. need to determine the function to send request to now
+		fnMetadata := getCanaryBackend(fh.functionMetadataMap, fh.fnWeightDistributionList)
+		if fnMetadata == nil {
+			fh.logger.Error("could not get canary backend",
+				zap.Any("metadataMap", fh.functionMetadataMap),
+				zap.Any("distributionList", fh.fnWeightDistributionList))
+			// TODO : write error to responseWrite and return response
+			return
+		}
+		fh.function = fnMetadata
+		fh.logger.Debug("chosen function backend's metadata", zap.Any("metadata", fh.function))
+	}
+
+	// url path
+	setPathInfoToHeader(request)
+
+	// system params
+	setFunctionMetadataToHeader(fh.function, request)
+
+	director := func(req *http.Request) {
+		if _, ok := req.Header["User-Agent"]; !ok {
+			// explicitly disable User-Agent so it's not set to default value
+			req.Header.Set("User-Agent", "")
+		}
+	}
+
+	var timeout int = fv1.DEFAULT_FUNCTION_TIMEOUT
+	if fh.functionTimeoutMap != nil {
+		timeout = fh.functionTimeoutMap[fh.function.GetUID()]
+	}
+
+	proxy := &httputil.ReverseProxy{
+		Director: director,
+		Transport: &RetryingRoundTripper{
+			logger:      fh.logger.Named("roundtripper"),
+			funcHandler: &fh,
+			timeout:     timeout,
+		},
+		ErrorHandler: getProxyErrorHandler(fh.logger, fh.function),
+	}
+
+	proxy.ServeHTTP(responseWriter, request)
+}
+```
+
+上述代码中的`httputil.ReverseProxy`实质上是给具体的function instance进行一个反向代理，里面比较重要的是RetryingRoundTripper的实例化，其中需要override多个函数比较重要的是`RoundTrip`。
+
+```go
+// RoundTrip is a custom transport with retries for http requests that forwards the request to the right serviceUrl, obtained
+// from router's cache or from executor if router entry is stale.
+//
+// It first checks if the service address for this function came from router's cache.
+// If it didn't, it makes a request to executor to get a new service for function. If that succeeds, it adds the address
+// to it's cache and makes a request to that address with transport.RoundTrip call.
+// Initial requests to new k8s services sometimes seem to fail, but retries work. So, it retries with an exponential
+// back-off for maxRetries times.
+//
+// Else if it came from the cache, it makes a transport.RoundTrip with that cached address. If the response received is
+// a network dial error (which means that the pod doesn't exist anymore), it removes the cache entry and makes a request
+// to executor to get a new service for function. It then retries transport.RoundTrip with the new address.
+//
+// At any point in time, if the response received from transport.RoundTrip is other than dial network error, it is
+// relayed as-is to the user, without any retries.
+//
+// While this RoundTripper handles the case where a previously cached address of the function pod isn't valid anymore
+// (probably because the pod got deleted somehow), by making a request to executor to get a new service for this function,
+// it doesn't handle a case where a newly specialized pod gets deleted just after the GetServiceForFunction succeeds.
+// In such a case, the RoundTripper will retry requests against the new address and give up after maxRetries.
+// However, the subsequent http call for this function will ensure the cache is invalidated.
+//
+// If GetServiceForFunction returns an error or if RoundTripper exits with an error, it get's translated into 502
+// inside ServeHttp function of the reverseProxy.
+// Earlier, GetServiceForFunction was called inside handler function and fission explicitly set http status code to 500
+// if it returned an error.
+func (roundTripper RetryingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Set forwarded host header if not exists
+	roundTripper.addForwardedHostHeader(req)
+
+	fnMeta := roundTripper.funcHandler.function
+
+	// Metrics stuff
+	startTime := time.Now()
+	funcMetricLabels := &functionLabels{
+		namespace: fnMeta.Namespace,
+		name:      fnMeta.Name,
+	}
+	httpMetricLabels := &httpLabels{
+		method: req.Method,
+	}
+	if roundTripper.funcHandler.httpTrigger != nil {
+		httpMetricLabels.host = roundTripper.funcHandler.httpTrigger.Spec.Host
+		httpMetricLabels.path = roundTripper.funcHandler.httpTrigger.Spec.RelativeURL
+	}
+
+	// set the timeout for transport context
+	transport := roundTripper.getDefaultTransport()
+	ocRoundTripper := &ochttp.Transport{Base: transport}
+
+	executingTimeout := roundTripper.funcHandler.tsRoundTripperParams.timeout
+
+	// wrap the req.Body with another ReadCloser interface.
+	if req.Body != nil {
+		req.Body = &fakeCloseReadCloser{req.Body}
+	}
+
+	// close req body
+	defer func() {
+		if req.Body != nil {
+			req.Body.(*fakeCloseReadCloser).RealClose()
+		}
+	}()
+
+	// The reason for request failure may vary from case to case.
+	// After some investigation, found most of the failure are due to
+	// network timeout or target function is under heavy workload. In
+	// such cases, if router keeps trying to get new function service
+	// will increase executor burden and cause 502 error.
+	//
+	// The "retryCounter" was introduced to solve this problem by retrying
+	// requests for "limited threshold". Once a request's retryCounter higher
+	// than the predefined threshold, reset retryCounter and remove service
+	// cache, then retry to get new svc record from executor again.
+	var retryCounter int
+
+	var serviceUrl *url.URL
+	var serviceUrlFromCache bool
+	var err error
+
+	var resp *http.Response
+
+	for i := 0; i < roundTripper.funcHandler.tsRoundTripperParams.maxRetries; i++ {
+		// set service url of target service of request only when
+		// trying to get new service url from cache/executor.
+		if retryCounter == 0 {
+			// get function service url from cache or executor
+			serviceUrl, serviceUrlFromCache, err = roundTripper.funcHandler.getServiceEntry()
+			if err != nil {
+				// We might want a specific error code or header for fission failures as opposed to
+				// user function bugs.
+				statusCode, errMsg := ferror.GetHTTPError(err)
+				if roundTripper.funcHandler.isDebugEnv {
+					return &http.Response{
+						StatusCode:    statusCode,
+						Proto:         req.Proto,
+						ProtoMajor:    req.ProtoMajor,
+						ProtoMinor:    req.ProtoMinor,
+						Body:          ioutil.NopCloser(bytes.NewBufferString(errMsg)),
+						ContentLength: int64(len(errMsg)),
+						Request:       req,
+						Header:        make(http.Header),
+					}, nil
+				}
+				return nil, ferror.MakeError(http.StatusInternalServerError, err.Error())
+			}
+
+			// service url maybe nil if router cannot find one in cache,
+			// so here we retry to get service url again
+			if serviceUrl == nil {
+				time.Sleep(executingTimeout)
+				executingTimeout = executingTimeout * time.Duration(roundTripper.funcHandler.tsRoundTripperParams.timeoutExponent)
+				continue
+			}
+
+			// tapService before invoking roundTrip for the serviceUrl
+			if serviceUrlFromCache {
+				go roundTripper.funcHandler.tapService(serviceUrl)
+			}
+
+			// modify the request to reflect the service url
+			// this service url may have come from the cache lookup or from executor response
+			req.URL.Scheme = serviceUrl.Scheme
+			req.URL.Host = serviceUrl.Host
+
+			// To keep the function run container simple, it
+			// doesn't do any routing.  In the future if we have
+			// multiple functions per container, we could use the
+			// function metadata here.
+			// leave the query string intact (req.URL.RawQuery)
+			req.URL.Path = "/"
+
+			// Overwrite request host with internal host,
+			// or request will be blocked in some situations
+			// (e.g. istio-proxy)
+			req.Host = serviceUrl.Host
+		}
+
+		// over-riding default settings.
+		transport.DialContext = (&net.Dialer{
+			Timeout:   executingTimeout,
+			KeepAlive: roundTripper.funcHandler.tsRoundTripperParams.keepAliveTime,
+		}).DialContext
+
+		overhead := time.Since(startTime)
+
+		roundTripper.logger.Debug("request headers", zap.Any("headers", req.Header))
+
+		// Creating context for client
+		if roundTripper.timeout <= 0 {
+			roundTripper.timeout = fv1.DEFAULT_FUNCTION_TIMEOUT
+		}
+
+		roundTripper.logger.Debug("Creating context for request for ", zap.Any("time", roundTripper.timeout))
+		// pass request context as parent context for the case
+		// that user aborts connection before timeout. Otherwise,
+		// the request won't be canceled until the deadline exceeded
+		// which may be a potential security issue.
+		ctx, closeCtx := context.WithTimeout(req.Context(), time.Duration(roundTripper.timeout)*time.Second)
+
+		// forward the request to the function service
+		resp, err = ocRoundTripper.RoundTrip(req.WithContext(ctx))
+		closeCtx()
+
+		if err == nil {
+			// Track metrics
+			httpMetricLabels.code = resp.StatusCode
+			funcMetricLabels.cached = serviceUrlFromCache
+
+			functionCallCompleted(funcMetricLabels, httpMetricLabels,
+				overhead, time.Since(startTime), resp.ContentLength)
+
+			// return response back to user
+			return resp, nil
+		} else if i >= roundTripper.funcHandler.tsRoundTripperParams.maxRetries-1 {
+			// return here if we are in the last round
+			roundTripper.logger.Error("error getting response from function",
+				zap.String("function_name", fnMeta.Name),
+				zap.Error(err))
+			return nil, err
+		}
+
+		// if transport.RoundTrip returns a non-network dial error, then relay it back to user
+		netErr := network.Adapter(err)
+
+		// dial timeout or dial network errors goes here
+		var isNetDialErr, isNetTimeoutErr bool
+		if netErr != nil {
+			isNetDialErr = netErr.IsDialError()
+			isNetTimeoutErr = netErr.IsTimeoutError()
+		}
+
+		// if transport.RoundTrip returns a non-network dial error (e.g. "context canceled"), then relay it back to user
+		if !isNetDialErr {
+			return resp, err
+		}
+
+		// Check whether an error is an timeout error ("dial tcp i/o timeout").
+		// If it's not a timeout error or retryCounter exceeded pre-defined threshold,
+		// we assume the entry in router cache is stale, invalidate it.
+		if !isNetTimeoutErr || retryCounter >= roundTripper.funcHandler.tsRoundTripperParams.svcAddrRetryCount {
+			if serviceUrlFromCache {
+				// if transport.RoundTrip returns a network dial error and serviceUrl was from cache,
+				// it means, the entry in router cache is stale, so invalidate it.
+				roundTripper.logger.Debug("request errored out - removing function from router's cache and requesting a new service for function",
+					zap.String("url", req.URL.Host),
+					zap.String("function_name", fnMeta.Name),
+					zap.Error(err))
+
+				roundTripper.funcHandler.fmap.remove(fnMeta)
+			}
+			retryCounter = 0
+		} else {
+			roundTripper.logger.Debug("request errored out - backing off before retrying",
+				zap.String("url", req.URL.Host),
+				zap.String("function_name", fnMeta.Name),
+				zap.Error(err))
+			retryCounter++
+		}
+
+		roundTripper.logger.Debug("Backing off before retrying", zap.Any("backoff_time", executingTimeout), zap.Error(err))
+		time.Sleep(executingTimeout)
+		executingTimeout = executingTimeout * time.Duration(roundTripper.funcHandler.tsRoundTripperParams.timeoutExponent)
+
+		// close response body before entering next loop
+		if resp != nil {
+			resp.Body.Close()
+		}
+	}
+
+	e := errors.New("Unable to get service url for connection")
+	roundTripper.logger.Error(e.Error(), zap.String("function_name", fnMeta.Name))
+	return nil, e
+}
+```
+
+相关的interface在[这里](https://gowalker.org/net/http#RoundTripper)，上述的代码中，大致是一个以retry次数为基准的循环体，主要是从cache或者executor中获取到相关entry，并对其进行反向代理，如果从cache中读取的entry能够成功返回，则说明cache仍旧生效，但是如果cache对应的url无效，则清除对应的cache，选用新的cache，无有效cache可用的情况下，改为从executor中请求一个新的url，并加入到cache中，这个时候会trigger executor对相应环境进行specialize
+
+```go
+// getServiceEntryFromExecutor returns service url entry returns from executor
+func (fh *functionHandler) getServiceEntryFromExecutor(ctx context.Context) (*url.URL, error) {
+	// send a request to executor to specialize a new pod
+	service, err := fh.executor.GetServiceForFunction(ctx, fh.function)
+	if err != nil {
+		statusCode, errMsg := ferror.GetHTTPError(err)
+		fh.logger.Error("error from GetServiceForFunction",
+			zap.Error(err),
+			zap.String("error_message", errMsg),
+			zap.Any("function", fh.function),
+			zap.Int("status_code", statusCode))
+		return nil, err
+	}
+
+	// parse the address into url
+	serviceUrl, err := url.Parse(fmt.Sprintf("http://%v", service))
+	if err != nil {
+		fh.logger.Error("error parsing service url",
+			zap.Error(err),
+			zap.String("service_url", serviceUrl.String()))
+		return nil, err
+	}
+
+	return serviceUrl, nil
+}
+
+
+
+//pkg/executor/client/client.go
+func (c *Client) GetServiceForFunction(ctx context.Context, metadata *metav1.ObjectMeta) (string, error) {
+	executorUrl := c.executorUrl + "/v2/getServiceForFunction"
+
+	body, err := json.Marshal(metadata)
+	if err != nil {
+		return "", errors.Wrap(err, "could not marshal request body for getting service for function")
+	}
+
+	resp, err := ctxhttp.Post(ctx, c.httpClient, executorUrl, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return "", errors.Wrap(err, "error posting to getting service for function")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", ferror.MakeErrorFromHTTP(resp)
+	}
+
+	svcName, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "error reading response body from getting service for function")
+	}
+
+	return string(svcName), nil
+}
+
+```
+
+之后回到specialize的过程之中。

@@ -560,7 +560,7 @@ func (fetcher *Fetcher) SpecializePod(ctx context.Context, fetchReq types.Functi
 
 fission的trigger机制如上，主要是四种，最终都是通过forward到router来统一进行与worker pod的交互。上述的四种工作方式是在[serverless白皮书](https://github.com/cncf/wg-serverless/tree/master/whitepapers/serverless-overview)上提到的四种方式。我们对每一种方式都在fission上进行下讨论。
 
-### Synchronous Req/Rep
+#### Synchronous Req/Rep
 
 主要针对的是网络相关的服务，这个地方比较常用的部分应该是短网址服务，加密服务等，是最直接的trigger router的方式。
 
@@ -945,3 +945,5 @@ func (c *Client) GetServiceForFunction(ctx context.Context, metadata *metav1.Obj
 ```
 
 之后回到specialize的过程之中。
+
+#### Message Stream

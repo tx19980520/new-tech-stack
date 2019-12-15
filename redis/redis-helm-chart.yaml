@@ -1,0 +1,11 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: redis-cluster
+  namespace: redis-cluster
+spec:
+  chart: redis-cluster
+  repo: https://inspur-iop.github.io/charts
+  targetNamespace: redis-cluster
+  set:
+    persistentVolume.storageClass: "local-path"

@@ -70,3 +70,13 @@ redis-cluster   helm-install-redis-cluster-x75hz          0/1     Completed     
 
 ```
 
+## redis-cluster & mysql consistency
+
+我们在此主要探讨redis cluster作为cache如何与mysql进行同步这样的一个问题，在我们的workload中，业务逻辑涉及的主要为create & read，不涉及update & delete。
+较多教程中提到的更新cache主要是依靠我们的业务逻辑backend，这样会给该backend带来不属于业务逻辑的额外负担，并且需要处理一些并发race的情况，比如两个thread都读取到了mysql的数据，他们都想要去更新redis的cache，则必有一个会失败，消耗时间且达不到效果。
+因此我们希望出现一个mysql的下游内容，其主要的工作就是进行mysql更新数据的提取和加工。加工对于我们而言就是写入到redis cluster中。
+我们目前选择的是alibaba的开源项目[canal](https://github.com/alibaba/canal)
+
+![url-infra](./images/url-infra.png)
+
+canal server将自己伪装成为mysql中一个slave，从binlog中获取到相应的数据，而后自定义化的canal client会进行加工和处理，当然其下游也可以是一个MQ(kafaka, rabbitMQ, etc.)。我们简易化的处理就直接写client即可。

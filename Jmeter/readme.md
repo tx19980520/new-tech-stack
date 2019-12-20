@@ -31,13 +31,13 @@ GUI主要是用于debug，小规模的测试，load原有的测试计划，不�
 
 1. 打开GUI进行项目的创立
 
-   ![gui](.\gui.png)
+   ![gui](./gui.png)
 
    你可以选择使用第一排从左到右第二个按钮来选择使用模板，我们在此选择使用Web Test Plan
 
-   ![structure](.\structure.png)
+   ![structure](./structure.png)
 
-![validate](.\validate.png)
+![validate](./validate.png)
 
-![validate](.\validate.png)
+![validate](./validate.png)
 

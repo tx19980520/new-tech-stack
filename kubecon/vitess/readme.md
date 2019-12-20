@@ -22,7 +22,7 @@ Vitess提供一种部署、扩容和管理大型MySQL集群的解决方案
 
 ## Vitess相关名词简介
 
-![VitessOverview](/images/VitessOverview.png)
+![VitessOverview](./images/VitessOverview.png)
 
 ### Topology
 
@@ -48,7 +48,7 @@ web GUI
 
 是几个长期运行的进程，主要任务为：
 
-1. 负责reshading，不论是在自动后者手动的情况下
+1. 负责reshading，不论是在自动或者手动的情况下
 2. 负责在已经垂直分表的情况下分配不同的join任务和split任务
 
 整体上来讲，Vitess给MySQL多做了两个层次上的工作，这可能会造成一些性能上的损失，我们需要相应的尝试后才能最终得出结论。

@@ -57,7 +57,9 @@ pip3 install canal-python
 
 ```
 
-## kubernetes 集群部署
+## canal更新cache的局限性
 
+因为canal的本质机制是利用mysql的binlog进行数据提取的，因此canal是没有办法感受到热点的，他只能做全量或者持续增量的cache维护。并且会出现以下两种情况，，导致数据miss。
 
-
+1. canal崩溃，导致某些写入mysql的数据没有被同步到redis，此时redis可能存在脏数据，或存在cache未曾进入到redis中的情况。
+2. redis因内存问题汰换相关的内容将无法回到redis中，因为只会在mysql更新\插入数据时才会更新cache。

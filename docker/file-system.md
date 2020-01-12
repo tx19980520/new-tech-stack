@@ -1,3 +1,5 @@
+
+
 # Docker的文件系统
 
 本文将主要介绍docker分层文件系统的相关知识，并主要介绍overlayfs、devicemap、aufs三种fs对于docker的支持以及再各个平台上的使用。
@@ -293,3 +295,36 @@ devicemap层级上是对块进行操作，因此如果拿到相应的地址，�
 
 TODO
 
+#### 有关squash的相关问题
+
+squash指将一个image撵平，不再具有相关的层次结构，我们能够做到的方式有如下三种
+
+1. 在build的使用--squash参数，这样只能对写的几层进行squash，对于base image无效。
+2. docker export & docker import 方式，但是只能对已经存在的镜像进行操作，不能从dockerfile开始
+3. 使用一些工具docker-squash / docker-slim
+
+![docker-export-save-diff](./images/docker-export-save-diff.png)
+
+通过的export（export的对象是container，save是container和image都可以，但结果都是image）导出的image确实会小大概100M，我们进一步inspect两个镜像，查看相关layer的情况![export-import-operator](./images/export-import-operator.png)
+
+发现确实是只剩下一层，且这一层的sha256与原来得也不同。
+
+而对于docker-slim更多是基于用户行为来进行slim操作，会要求用户输入其需要在容器中使用的相应cmd（还不清楚如果我又多个cmd会怎么样），也不清楚其实现是乐观的还是悲观的，但我认为如果我是用作一个dev container在vscode中使用，这种2MBslim过image应该很难使用，因此其可能更加适合是非mount、操作固定的情况下最终对image进行压缩。
+
+![docker-slim](./images/docker-slim.png)
+
+![docker-slim-image-start](./images/docker-slim-image-start.png)
+
+#### squash的优缺点
+
+Prof：
+
+1. 能够少量的减少image的大小
+2. 能够对首次open文件/目录或者目录读取的速度提升
+
+Cons:
+
+	1. 由于失去层次关系，不能进行层次间的共享，因此单看一个文件大小或许有所变化，layer不可共享带来的问题更加使得空间紧缺，网络传输的消耗也变大。
+ 	2. 并未提高对文件的读写能力。
+
+因此，对于是否squash image，需要有更进一步的考虑，如果这个image在今后以base image存在与你的项目中，可以考虑在进一步工作之前进行相应的瘦身。

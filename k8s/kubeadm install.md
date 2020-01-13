@@ -20,7 +20,7 @@ kubernetes=1.15.0
 2. 基本环境的搭建
 
    ```bash
-   sudo apt-get install \
+   sudo apt-get -y install \
        apt-transport-https \
        ca-certificates \
        curl \

@@ -2,7 +2,7 @@
 
 本文档主要记录cluster autoscaler（后文简称CA）的主要逻辑以及在其源代码中的体现，我们首先从CA的行为作为切入点。
 
-![cluster-autoscaler](./cluster-autoscaler.png)
+![cluster-autoscaler](./images/cluster-autoscaler.png)
 
 上图源自该篇[博客](https://blog.csdn.net/jettery/article/details/82776318)，他主要反映的是，驱动CA进行工作的不是一些metrics，而是具体的一个Pod有没有一个可以落脚的位置。CA通过定时检查pending状态容器，与cloud provider进行交互，获取到更多的资源来进行相应的工作。
 

@@ -260,7 +260,7 @@ helm repo update
 
 ## HorizontalPodAutoscaler
 
-![hpa](./hpa.png)
+![hpa](./images/hpa.png)
 
 我们之前要实现伸缩，我们需要主动的去往kubedashboard进行手动调整Pod数量，如果我们需要通过观测我们CPU的使用情况或者metrics达到一定规则时，我们的集群能够自动的讲该项服务进行扩展，以保证我们项目的正常工作。
 
@@ -276,7 +276,7 @@ kubectl edit deployment wordladder-v1 #注意这里 我们需要去给pod写清�
 
    ## Istio
 
-   ![k8s+Istio](./k8s+Istio.png)
+   ![k8s+Istio](./images/k8s+Istio.png)
 
    我们的kubernetes实现了分布式部署的相关工作，但对于在线管理上kubernetes能做的并不多，我们需要实现熔断限流、动态路由，因而我们需要在kubernetes的体系下融入Istio。
 
@@ -318,15 +318,15 @@ kubectl edit deployment wordladder-v1 #注意这里 我们需要去给pod写清�
 
    直接将grafana转变为NodePort，因为之前已经配置过，所以没有太大的问题。
 
-   ![grafana](./grafana.png)
+   ![grafana](./images/grafana.png)
 
    ### bookinfo示例的使用过程
 
-![reviews-v1](./reviews-v1.png)
+![reviews-v1](./images/reviews-v1.png)
 
-   ![reviews-v2](./reviews-v2.png)
+   ![reviews-v2](./images/reviews-v2.png)
 
-   ![reviews-v3](./reviews-v3.png)
+   ![reviews-v3](./images/reviews-v3.png)
 
    当我们按照官方[bookinfo](https://istio.io/zh/docs/examples/bookinfo/)（注意一定要把DestinationRule 给配置了，不然到后面，我们进行引流的时候会发现Error）进行完成安装之后，我们在浏览器中打开对应的页面，将会看到上面三个图（F5刷新）的界面，这是由于我们对reviews设置了v1-v3，而如果没有进行流量的控制，则实行的策略将是按顺序进行访问，我们使用[教程](https://istio.io/zh/docs/tasks/traffic-management/request-routing/)中的相关方法，会讲v2定向给jason用户，而未登录用户则无法看到reviews的评级。
 
@@ -350,7 +350,7 @@ kubectl port-forward --namespace default svc/elastic-elasticsearch-coordinating-
 
 我们在得到了hello world的相关回应之后发现了另一个问题，elastic-elasticsearch-data-0这个pod一直是在pending的状态，我反过头去看配置的相关文档，发现了这里面的相关问题：
 
-![PVCnotfound](./PVCnotfound.png)
+![PVCnotfound](./images/PVCnotfound.png)
 
 - Kubernetes 1.6+
 - PV dynamic provisioning support on the underlying infrastructure
@@ -386,11 +386,11 @@ Persistent Volumes Claim(PVC) 可以简单的认为是一种资源的请求，�
 #### dynamic provisioning support
 
 在2019年5月29日我最终知道了这个操作应该如何实现比较方便和科学，我们购买了阿里云的NAS服务，并在其上搭建了一个NFS(Network File System)服务。
-![aliyun-nfs](./aliyun-nfs.png)
+![aliyun-nfs](./images/aliyun-nfs.png)
 
 之后我们使用helm生成nfs对应的storageclass，主要的values.yaml的文件如下：
 
-![nfs-values](D:\new-tech-stack\k8s\nfs-values.png)
+![nfs-values](./images/k8s/nfs-values.png)
 
 之后直接使用相应的storagename即可
 
@@ -506,15 +506,15 @@ serverb在dell g7的本地进行工作，运行的时间在8秒左右，在服�
 
 集群上使用的cpu为Xeon E5 2630，共11个核心，本地使用的CPU为i7-8750H，在这个方面，我们可以查到如下的跑分结果：
 
-![cpu-e5](./cpu-e5.png)
+![cpu-e5](./images/cpu-e5.png)
 
-![cpu-i7](./cpu-i7.png)
+![cpu-i7](./images/cpu-i7.png)
 
 我们可以看到E5-2630在单核上是比不过i7，大致的性能比在0.5:1，但是我们在服务器上给予其12核，且观察到12核都已经在使用状态，并且加核能够稳定的剪短我们的响应时间，但我们同时也观察到，加核无法做到降低load模型的时间，这是一个非常值得注意的地方，我们需要进一步对磁盘进行分析和对比。
 
 #### 磁盘IO
 
-![hard-disk-d](./hard-disk-d.png)
+![hard-disk-d](./images/hard-disk-d.png)
 
 ![hard-disk-server](./hard-disk-server.png)
 
@@ -532,15 +532,15 @@ curl localhost:8000/embedding -X POST -H "Content-Type:application/json" -d '{"t
 
 4core，总时间为12s
 
-![load-4core](D:\new-tech-stack\k8s\load-4core.png)
+![load-4core](./images/load-4core.png)
 
 6core 总时间为10s
 
-![load-6core](D:\new-tech-stack\k8s\load-6core.png)
+![load-6core](./images/load-6core.png)
 
 10core 总时间为8s
 
-![load-10core](D:\new-tech-stack\k8s\load-10core.png)
+![load-10core](./images/load-10core.png)
 
 首先是在其中发现，在整个加载的过程中，核不是关键，在计算过程中核确实是关键，核越多计算越快，我们check了虚拟机的硬盘读取速度，与服务器上硬盘读取速度相近。
 

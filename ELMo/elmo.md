@@ -13,7 +13,7 @@ contextualized word representations），并且解决了使用word2vec中的无�
 
 ### 网络结构
 
-![network-structure](./network-structure.png)
+![network-structure](./images/network-structure.png)
 
 这个网络有两个特点
 
@@ -22,11 +22,11 @@ contextualized word representations），并且解决了使用word2vec中的无�
 
 ## 解决OOV的方式 sub-word+CNN
 
-![character-CNN](./character-CNN.png)
+![character-CNN](./images/character-CNN.png)
 
 在character的层级上先利用CNN，使用多个不同规格的kernel，对陌生单词进行2d卷积提取信息。
 
-![character-CNN-simple](./character-CNN-simple.png)
+![character-CNN-simple](./images/character-CNN-simple.png)
 
 ### 演讲稿部分
 
@@ -43,7 +43,7 @@ contextualized word representations），并且解决了使用word2vec中的无�
 
 ### 模型结构
 
-![binary-branch](./binary-branch.png)
+![binary-branch](./images/binary-branch.png)
 
 同时输入图片和文本，分别在CNN和RNN的处理下得到我们X，Y，在进过一层Activation和L2 norm之后我们将两者的结果进行比对，最终再经过一层全连接层，得到最后我们希望得到的匹配程度。
 

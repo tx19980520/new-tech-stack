@@ -12,7 +12,7 @@
 
 因为在windows下，docker container是在你的虚拟机下面跑的，当你打开Oracle VM virtualBox的时候，你需要能够对default虚拟机的网卡和bridge进行设置，如下图。
 
-![net](net.png)
+![net](./images/net.png)
 
 需要提醒的是，虚拟机需要在每次使用docker的时候打开，这也是为什么不提倡大家在windows下使用的原因之一。
 

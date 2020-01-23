@@ -6,7 +6,7 @@
 helm pull --untar inspur/redis-cluster # pull
 ```
 
-![helm-ansible-operator](D:\new-tech-stack\helm\helm-ansible-operator.png)
+![helm-ansible-operator](./images/helm-ansible-operator.png)
 
 之后我们需要了解到helm的hook机制
 在 Helm 中定义了如下一些可供我们使用的 Hooks：

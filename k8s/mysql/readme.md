@@ -62,7 +62,7 @@ show slave status\G
 2. 'aio write' returned OS error 122.出现这个问题的主要原因是我是windows系统，我的docker容器是跑在虚拟机中，我又希望在windows里面写配置文件，所以我把目录挂载进虚拟机，docker的目录又挂载到挂载目录，出现了文件系统不支持这样的问题。
 3. master_host到底填什么，这个问题我之前一直以为是填192.168.99.100（我虚拟机在我电脑上的ip）或者是127.0.0.1或者直接0.0.0.0，这些都不对，应该是填master和slave两个容器link起来之后建立的网络中的ip地址，所以我选择了使用--link，并在slave中使用了master域名。
 
-![hosts](./hosts.png)
+![hosts](./images/hosts.png)
 
 ### log_slave_updates
 
@@ -80,19 +80,19 @@ A与B为主主复制，C为A的slave，则我们会发现C的更新只来源于A
 
 我们的master节点出现故障时，需要我们将一个slave节点切换为新的master节点，并且将其余的slave作为新master的slave。
 
-![redundancy-before](./redundancy-before.png)
+![redundancy-before](./images/redundancy-before.png)
 
 0. 确保每个slave节点都没有使用--log-slave-updates
 
 1. 通过 `show processlist`查看
 
-   ![no-relay](./no-relay.png)
+   ![no-relay](./images/no-relay.png)
 
 2. 对被选中的slave执行`stop slave`，`reset master`
 
 3. 对其余节点`stop slave`并且`change master to`
 
-![redundancy-after](./redundancy-after.png)
+![redundancy-after](./images/redundancy-after.png)
 
 ### mysql on kubernetes with master-slave structure
 
@@ -338,19 +338,19 @@ A与B为主主复制，C为A的slave，则我们会发现C的更新只来源于A
 
 1. 文件丢失
 
-   ![aliyun-log](./aliyun-log.png)
+   ![aliyun-log](./images/aliyun-log.png)
 
-   ![diff](./diff.png)
+   ![diff](./images/diff.png)
 
    主要是图中的一个xtrabackup_checkpoints，主要是这个文件丢失。这个错误发生在上述的clone-mysql步骤中，所以其实slave还没有生成出来，所以我也看不到具体内部的情况（其实还是希望能看到尸体，但是不知道怎么做）。
 
    正常的log如下
 
-   ![202-log](./202-log.png)
+   ![202-log](./images/202-log.png)
 
 2. 发现如果我们replica = 1，没有slave数据库，应该能够使用，但是仍旧是无法服务发现。
 
-   ![service-cannot-connect](./service-cannot-connect.png)
+   ![service-cannot-connect](./images/service-cannot-connect.png)
 
 我们最终验证是Istio不支持statefulset的方式为使用控制变量法：
 

@@ -6,7 +6,7 @@
 
 Kubernetes中的最基础单元是一个Pod，一个Pod可以承载一个或者多个相关的容器。
 
-![frame](.\structure.jpg)
+![frame](./images/structure.jpg)
 
 Kubernetes可以维护Pod的总数，对无响应的Pod进行删除，并创建新的Pod。当Pod里的某个容器停止时，Kubernetes会自动检测到这个问起并且重启这个Pod（重启Pod里的所有容器），如果Pod所在的Node宕机，则会将这个Node上的所有Pod重新调度到其他节点上。
 
@@ -16,7 +16,7 @@ NodePort
 
 系统会在Kubernetes集群中的每个Node上打开一个主机的真实端口，这样，能够访问Node的客户端就能通过这个端口访问到内部的Service了
 
-![frame](.\frame.png)
+![frame](./images/frame.png)
 
 上图为某app的部署架构，我们在多态服务器（虚拟机）上进行部署，我们对各项服务进行分离，一共分为三个板块——ES、serverA、serverB，每一个小的模块都是一个微服务，我们对每一类型的服务进行弹性的部署。
 
@@ -44,7 +44,7 @@ NodePort
 
    我们使用在某个节点上使用proxy，然后该节点上都是访问这个proxy的监听的端口，这个代理来看是哪个master能够来进行管理。
 
-   ![proxy](./proxy.png)
+   ![proxy](./images/proxy.png)
 
 2. 设置固定ip
 

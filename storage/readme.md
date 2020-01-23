@@ -6,7 +6,7 @@
 
 ### DAS  vs NAS vs SAN
 
-![structure](./structure.png)
+![structure](./images/structure.png)
 
 #### Direct Attached Storage
 
@@ -16,11 +16,11 @@
 
 NAS开始考虑定义一种特殊的服务器作为数据存储服务器，NAS支持多种协议（如NFS，CIFS，FTP，HTTP等，主要使用NFS和FTP），是**文件系统与文件系统层级**（所以存储的是文件）的映射，网络上只有协议，没有文件系统，文件系统都是在本地，并不通过计算机内部总线来传递文件读写指令的系统。
 
-![nfs-structure](./nfs-structure.png)
+![nfs-structure](./images/nfs-structure.png)
 
 对于NAS较为简单的使用就是在数据存储服务器上架起NAS server之后，在我们的服务器上进行mount，我们使用sysbench比较过NAS和 内置磁盘的性能比较。
 
-![nas-disk-compare](./nas-disk-compare.png)
+![nas-disk-compare](./images/nas-disk-compare.png)
 
 性能差距大概是在8-10倍左右，网络环境并非内网，在带宽上会有一定的差距。
 
@@ -30,17 +30,17 @@ NAS开始考虑定义一种特殊的服务器作为数据存储服务器，NAS�
 
  SAN实际是一种专门为存储建立的独立于TCP/IP网络之外的专用网络（可以使用FC光纤通道技术进行专用网络的建立，更加安全和高效）。SAN中数据处理的单位是数据块，而并非是文件。以iSCSI为基础，能够进行快速的数据传输，注意这里我们的服务器是没有通过File System与存储设备进行交互，而是通过iSCSI（基于TCP/IP）与device driver进行交互。
 
-![san](san.png)
+![san](./images/san.png)
 
 这样专用的性能并直接与Device进行交互，性能有大幅度的提升。
 
-![san_vs_nas](./san-vs-nas.png)
+![san_vs_nas](./images/san-vs-nas.png)
 
 两者之间的比较可详见[这里](https://www.enterprisestorageforum.com/storage-networking/nas-vs.-san-differences-and-use-cases.html)。
 
 NAS和SAN这两种存储的方式并不是互斥的。SAN可以负责关键应用的存储，比如数据库。NSA支持的是文件，以文件为单位的管控会更加的有效。
 
-![san-vs-nas-throughout](san-vs-nas-throughput.png)
+![san-vs-nas-throughout](./images/san-vs-nas-throughput.png)
 
 ### Ceph vs GlusterFS
 
@@ -50,7 +50,7 @@ Ceph提供对象存储、文件存储、块存储。对象存储是键值对存�
 
 Ceph集群的架构
 
-![ceph-architecture](./ceph-architecture.png)
+![ceph-architecture](./images/ceph-architecture.png)
 
 Ceph集群的三个主要构件为：
 
@@ -60,9 +60,9 @@ Ceph集群的三个主要构件为：
 
 ##### 数据存储
 
-![ceph-storage-architecture](./ceph-storage-architecture.jpg)
+![ceph-storage-architecture](./images/ceph-storage-architecture.jpg)
 
-![ceph_relation](./ceph-relation.png)
+![ceph_relation](./images/ceph-relation.png)
 
 Pool是存储对象的逻辑分区
 
@@ -72,7 +72,7 @@ Pool是存储对象的逻辑分区
 
 OSD上与PG是多对多的关系，一个OSD与具体的磁盘是一对一的关系。
 
-![ceph-data-structure](ceph-data-structure.png)
+![ceph-data-structure](./images/ceph-data-structure.png)
 
 主义ID是全集群unique的，而不是filesystem唯一的。
 
@@ -94,7 +94,7 @@ Ceph使用了**CRUSH** 算法，配合在之前已经定义好的**crush map**�
 
 > In such situations, CRUSH can use the “first n” suitable targets by reselecting using r′ = r + f , where f is the number of failed placement attempts by the current select(n,t) (see Algorithm 1 line 16). With parity and erasure coding schemes, however, the rank or position of a storage device in the CRUSH output is critical because each target stores different bits of the data object. In particular, if a storage device fails, it should be replaced in CRUSH’s output list ~R in place, such that other devices in the list retain the same rank (i. e. position in ~R, see Figure 2). In such cases, CRUSH reselects using r′ = r + frn, where fr is the number of failed attempts on r, thus defining a sequence of candidates for each replica rank that are probabilistically independent of others’ failures.
 
-![replica-rank](./replica-rank.png)
+![replica-rank](./images/replica-rank.png)
 
 高可用的实现有两种方式一种是replication，在Ceph里面使用的是erasure code 和 n-way replication。
 
@@ -143,7 +143,7 @@ erasure code的效果是将一份数据分为n份，在加上m份数据，只要
 - 由于metadata中心化导致的性能瓶颈问题，元数据的维护是非常消耗时间的（例如access time的维护），随着系统的长时间和不断扩容使用metadata会越来越多。
 - 不高可用，如果centralized metadata server崩溃，将导致整个文件系统失效，最好的情况是会导致一次FSCK的操作，但是会消耗大量的时间，最坏的情况是所有数据均不可恢复。
 
-![central-metadata-server](./central-metadata-server.png)
+![central-metadata-server](./images/central-metadata-server.png)
 
 **distributed metadata systems**
 
@@ -156,7 +156,7 @@ erasure code的效果是将一份数据分为n份，在加上m份数据，只要
 - 相当大的性能开销是作为各种分布式的引入的，系统试图通过使用各种锁定和同步机制与数据保持同步。因此，困扰集中式元数据系统的大多数性能扩展问题都困扰分布式系统。元数据系统也是如此。性能会随着文件、文件操作、存储系统、磁盘或I/O操作的随机性的增加而下降。性能也会随着平均文件大小的减小而降低。
 - 分布式元数据系统还面临严重的潜在破坏问题。虽然一个分布式节点的丢失或损坏不会导致整个系统崩溃，但它可以损坏整个系统。当元数据存储在多个位置时，同步维护元数据的需求还意味着与以下情况相关的重大风险:元数据没有正确地保持同步，或者在实际损坏元数据的情况下。最糟糕的情况是，文件数据和元数据被成功地更新到不同的位置，而没有正确的元数据同步维护，从而导致多个实例之间不再完全一致。此外，损坏存储系统的几率随系统的数量呈指数增长。因此，元数据的并发性成为一个重大挑战。元数据系统也是如此。性能会随着文件、文件操作、存储系统、磁盘或I/O操作的随机性的增加而下降。性能也会随着平均文件大小的减小而降低。（metadata的Concurrency）
 
-![decentralized-metadata-approach](./decentralized-metadata-approach.png)
+![decentralized-metadata-approach](./images/decentralized-metadata-approach.png)
 
 **algorithmic approach**
 
@@ -174,9 +174,9 @@ glusterFS 最终选择通过文件名和路径名使用Elastic Hashing Algorithm
 
 #### 有关GlusterFS的实际应用相关业内人士见解
 
-![wechat-0](./wechat-0.png)
+![wechat-0](./images/wechat-0.png)
 
-![wechat-1](./wechat-1.png)
+![wechat-1](./images/wechat-1.png)
 
 ## ref
 

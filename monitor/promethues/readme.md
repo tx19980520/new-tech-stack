@@ -25,7 +25,7 @@ prometheus:
 
 通过Promethues能够非常轻易的看到相关的统计数据
 
-![promethues](./promethues.png)
+![promethues](./images/promethues.png)
 
 我们可以在Promethues中进行相应的调试之后，将最终的统计方式在Grafana中更好的展示，其语法是相通的。
 
@@ -87,11 +87,11 @@ smtp部分主要是host、user、password、以及from_address需要进行相关
 
 之后在Grafana的页面中进行Alert的channel配置并且sent for notification，在邮箱中会收到如下的邮件。
 
-![notification](./notification.png)
+![notification](./images/notification.png)
 
 Alert可以认为是基于一个view的，我们可以新建一个view，之后在里面使用Promethues的语法进行统计， 并组织撰写相应的Rule，最后等待相应的邮件即可：
 
-![email-alert](./email-alert.png)
+![email-alert](./images/email-alert.png)
 
 简单流程测试如上
 

@@ -36,13 +36,13 @@ Span:
 - 任何一个OpenTracing的实现，都需要将当前调用链的状态（例如：trace和span的id），依赖一个独特的Span去跨进程边界传输
 - **Baggage Items**，Trace的随行数据，是一个键值对集合，它存在于trace中，也需要跨进程边界传输
 
-我们先看一个典型的分布式调用的例子：![trace-demo](./trace-demo.png)
+我们先看一个典型的分布式调用的例子：![trace-demo](./images/trace-demo.png)
 
 下图是一个分布式调用的例子，客户端发起请求，请求首先到达负载均衡器，接着经过认证服务，计费服务，然后请求资源，最后返回结果。
 
 最终能够呈现的形式为：
 
-![trace-time](./trace-time.png)
+![trace-time](./images/trace-time.png)
 
 ### Span之间的关系
 
@@ -52,7 +52,7 @@ Span与Span之间可以出现多重关系，但是只会有两种关系
 
 更加详细的信息可以看[这里](https://github.com/opentracing-contrib/opentracing-specification-zh)
 
-![jaeger-structure](./jaeger-structure.png)
+![jaeger-structure](./images/jaeger-structure.png)
 
 Jaeger Client： 为了不同语言实现了符合OpenTracing标准的SDK。应用程序通过API写入数据， client library把trace信息按照应用程序制定的采样策略传递给jaeger-agent。是程序员在写代码的时候需要调用打桩的。
 
@@ -138,7 +138,7 @@ go get github.com/jaegertracing/jaeger
 # 将服务的源码获取，以便于我们进行相应的对比和模仿
 ```
 
-![jaeger-demo-result](./jaeger-demo-result.png)
+![jaeger-demo-result](./images/jaeger-demo-result.png)
 
 能够观察到结果，以及从我们docker run的情况来看，我们还是发请求发送到6831的agent上，这和我们之前的架构里面的是同一个理念
 
@@ -150,7 +150,7 @@ go get github.com/jaegertracing/jaeger
 
 由上图可知，这个调用链的概念已经能够通过访问建立，上面的数字越大代表在该时间段内的通信次数。
 
-![jaeger-demo-result](./jaeger-demo-result.png)
+![jaeger-demo-result](./images/jaeger-demo-result.png)
 
 上图为监控台，用于监察相应的服务。
 
@@ -158,6 +158,6 @@ go get github.com/jaegertracing/jaeger
 
 我们在使用**`kubespray`**搭建的阿里云集群上测试，我们在集群上仅部署了一个前端，但是我们还是发现有调用链的出现。
 
-![istio-chain](./istio-chain.png)
+![istio-chain](./images/istio-chain.png)
 
 我们依靠的是Istio在其中的一个表现，Istio监管着整个网络中的流量，因此相当于Jeager的监控，实质上是在监控Istio自动注入的envoy和cidecar。

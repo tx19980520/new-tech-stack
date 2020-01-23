@@ -2,7 +2,7 @@
 
 Scrapy 是python种比较成熟的爬虫框架，日常生活中，爬虫主要为技术人员的提供丰富的数据用后后续的分析，我们研究爬虫的目的在于获取数据进行学习
 
-![img](scrapy_architecture.jpg)
+![img](./images/scrapy_architecture.jpg)
 
 ## 安装&&创建项目
 

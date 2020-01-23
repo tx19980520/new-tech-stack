@@ -1,3 +1,7 @@
 
 *.pyc
 *.hprof
+.idea
+*.jar
+*.lst
+*.class

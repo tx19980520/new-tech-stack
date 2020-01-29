@@ -145,3 +145,19 @@ Lock是一种悲观的解决并发的方式，我们只在使用锁时，默认�
 
 如果一个变量只要被某个线程独享，java中可以使用ThreadLocal类来实现线程本地存储，主要的使用场景是，在需要统一的初始化对象分发到各个线程中之后，线程保存期副本然后对其进行使用，比如我们初始化的相关数据库连接。
 
+## 线程间通信
+
+在此介绍三种线程间通信的方式
+
+### volitale一次性通知
+
+使用volitale关键字可以处理好一写多读这样的多线程情况，这一写主要是通知性的写。
+
+### synchronized体系使用wait/notify(All)
+
+是比较标准的一套工作体系，向两个不同的线程传入相同的数据结构，对数据结构进行synchronized保护，但注意，请格外注意使用notify()和notifyAll()，使用notify只会唤醒一个线程，如果唤醒的是同类线程，有可能会导致假死的情况，即所有的线程都是wait状态。
+
+### java管道
+
+java这个管道让我感受到了写golangchannel的快乐，稍微繁琐了一点点，`PipedInputStream` `PipedOutputStream`两者进行绑定之后，直接将`PipedInputStream`分发给消费者，把`PipedOutputStream`分发给生产者，这个地方敢这么做是因为在PipedInputStream中的receive函数是被synchronized修饰的，因此写入Input的Buffer这个动作是串行化的，是线程安全的。
+

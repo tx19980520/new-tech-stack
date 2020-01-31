@@ -581,7 +581,9 @@ private void fixAfterInsertion(Entry<K,V> x) {
     }
 ```
 
+注意到这里的TreeMap是继承`NavigableMap`则相对于`HashMap`则会多出一些接口，主要是因为TreeMap是基于红黑树进行工作的，因此TreeMap可以做一些scope类型的操作。
 
+详细的接口见[这里](https://docs.oracle.com/javase/8/docs/api/java/util/NavigableMap.html)
 
 ## Set
 
@@ -631,7 +633,159 @@ public boolean remove(Object o) {
 
 ### LinkedHashSet
 
-LinkedHashSet具有可预测的迭代顺序，但是其实现又是基于HashSet的，本质上就是基于HashMap。
+由上述源代码可见，LinkedHashSet 通过继承 HashSet，底层使用 LinkedHashMap，以很简单明了的方式来实现了其自身的所有功能。
 
+### TreeSet
 
+同上，本质是使用TreeMap进行实现。
+
+## Queue
+
+### ArrayQueue
+
+ArrayQueue是通过数组实现队列。
+
+```java
+ private static int calculateSize(int numElements) {
+ 6         int initialCapacity = MIN_INITIAL_CAPACITY;
+ 7         if (numElements >= initialCapacity) {
+ 8             initialCapacity = numElements;
+ 9             initialCapacity |= (initialCapacity >>>  1);
+10             initialCapacity |= (initialCapacity >>>  2);
+11             initialCapacity |= (initialCapacity >>>  4);
+12             initialCapacity |= (initialCapacity >>>  8);
+13             initialCapacity |= (initialCapacity >>> 16);
+14             initialCapacity++;
+15 
+16             if (initialCapacity < 0) 
+17                 initialCapacity >>>= 1;
+18         }
+19         return initialCapacity;
+20     }
+```
+
+上述代码计算比numElements大的最小2的幂次方，主要是要找到最高位的1在哪里，然后最后加1即可，[这里](https://www.cnblogs.com/mfrank/p/9600137.html)讲述的比较详细
+
+```java
+/**
+     * Inserts the specified element at the front of this deque.
+     *
+     * @param e the element to add
+     * @throws NullPointerException if the specified element is null
+     */
+    public void addFirst(E e) {
+        if (e == null)
+            throw new NullPointerException();
+        elements[head = (head - 1) & (elements.length - 1)] = e;
+        if (head == tail)
+            doubleCapacity();
+    }
+
+    /**
+     * Inserts the specified element at the end of this deque.
+     *
+     * <p>This method is equivalent to {@link #add}.
+     *
+     * @param e the element to add
+     * @throws NullPointerException if the specified element is null
+     */
+    public void addLast(E e) {
+        if (e == null)
+            throw new NullPointerException();
+        elements[tail] = e;
+        if ( (tail = (tail + 1) & (elements.length - 1)) == head)
+            doubleCapacity();
+    }
+```
+
+tail和head的更新详细的说明一下
+
+因为`elements.length`是二次的次幂，因此`elements.length-1`相当于是一个mask，可以则如果说`tail`已经是数组的最大index，则`(tail + 1) & (elements.length - 1)`的结果为0，则此时就实现了循环数组的概念。类似的如果head-1为0，则`-1 & (elements.length - 1)`，此时
+
+```java
+/**
+     * Doubles the capacity of this deque.  Call only when full, i.e.,
+     * when head and tail have wrapped around to become equal.
+     */
+    private void doubleCapacity() {
+        assert head == tail;
+        int p = head;
+        int n = elements.length;
+        int r = n - p; // number of elements to the right of p
+        int newCapacity = n << 1;
+        if (newCapacity < 0)
+            throw new IllegalStateException("Sorry, deque too big");
+        Object[] a = new Object[newCapacity];
+        System.arraycopy(elements, p, a, 0, r);
+        System.arraycopy(elements, 0, a, r, p);
+        elements = a;
+        head = 0;
+        tail = n;
+    }
+```
+
+这里扩容使用的是固定操作，即copy head之后元素到新数组头部。
+
+```java
+public boolean hasNext() {
+            return cursor != fence;
+        }
+
+        public E next() {
+            if (cursor == fence)
+                throw new NoSuchElementException();
+            @SuppressWarnings("unchecked")
+            E result = (E) elements[cursor];
+            // This check doesn't catch all possible comodifications,
+            // but does catch the ones that corrupt traversal
+            // 如果移除了尾部元素，会导致 tail != fence
+            // 如果移除了头部元素，会导致 result == null
+            if (tail != fence || result == null)
+                throw new ConcurrentModificationException();
+            lastRet = cursor;
+            cursor = (cursor + 1) & (elements.length - 1);
+            return result;
+        }
+```
+
+我们看了很多的容器，发现这里首先是没有用modCount来实现所谓的版本控制的，而是使用简单的`tail != fence || result == null`，不能检查到在此时从尾部取出一个元素在加入一个元素的情况，但是这个容器也没有说自己是一个多线程安全的容器，甚至主动暴露这种问题，显示的让程序员自己去解决是有一定好处的。
+
+ArrayDeque和LinkedList相比有什么优势？ArrayDeque通常来说比LinkedList更高效，因为可以在常量时间通过序号对元素进行定位，并且省去了对元素进行包装的空间和时间成本。
+
+ArrayDeque的应用场景是什么？在很多场景下可以用来代替LinkedList，可以用做队列或者栈。
+
+### PriorityQueue
+
+PriorityQueue是使用堆实现。对于堆而言，主要就是维护堆的正确定，因此插入一个元素的时间为`O(logn)`
+
+```java
+private void siftUpUsingComparator(int k, E x) {
+        while (k > 0) {
+            int parent = (k - 1) >>> 1;
+            Object e = queue[parent];
+            if (comparator.compare(x, (E) e) >= 0)
+                break;
+            queue[k] = e;
+            k = parent;
+        }
+        queue[k] = x;
+    }
+private void siftDownComparable(int k, E x) {
+        Comparable<? super E> key = (Comparable<? super E>)x;
+        int half = size >>> 1;        // loop while a non-leaf
+        while (k < half) {
+            int child = (k << 1) + 1; // assume left child is least
+            Object c = queue[child];
+            int right = child + 1;
+            if (right < size &&
+                ((Comparable<? super E>) c).compareTo((E) queue[right]) > 0)
+                c = queue[child = right];
+            if (key.compareTo((E) c) <= 0)
+                break;
+            queue[k] = c;
+            k = child;
+        }
+        queue[k] = key;
+    }
+```
 

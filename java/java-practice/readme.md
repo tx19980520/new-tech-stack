@@ -12,12 +12,12 @@
 
 - java基础
 
-- java泛型
+- [java泛型](/override&reload)
 - java运行时内存模型
 - java多线程
 - NIO
-- reflect&invoke
-- java容器
+- [reflect&invoke](/reflect&invoke)
+- [java容器](/java-container)
 - jvm GC
 - java并发
 

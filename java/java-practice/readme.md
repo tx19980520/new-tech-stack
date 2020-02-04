@@ -6,7 +6,7 @@
 
 - [java重载与重写](./override&reload)
 
-- [java语法糖之装箱拆箱](./pack&unpacking)
+- [java语法糖之装箱拆箱](./packing&unpacking)
 
 预计准备的相关内容：
 
@@ -18,7 +18,7 @@
 - NIO
 - [reflect&invoke](/reflect&invoke)
 - [java容器](/java-container)
-- jvm GC
+- [jvm GC](/garbage-collection)
 - java并发
 
 提供一个基于cmd的java环境，用于测试

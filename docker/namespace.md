@@ -108,10 +108,10 @@ ip link set dev veth0 up
 现在整体的考虑的一下kubernetes+flannel+CoreDNS这套架构下，我们整个发包的流程：
 
 1. 检查包如果是本Pod内的，由于一个Pod内是使用的一个namespace，则该包并不过docker的网卡，而是在子网内的网桥中进行运转。
-2. 如果包是发往同一宿主机上的不同Pod，则需要发包到宿主机的docker网卡，但是不会进入到flannel的网桥中。
+2. 如果包是发往同一宿主机上的不同Pod，则需要发包到宿主机的网卡（宿主机是单独一个namespace），但是不会进入到flannel的网桥中。
 3. 如果是包是发往不同宿主机上的Pod，则需要发包到flannel的网卡上，然后flannel去查询相关的地址，进行封装后发包。
 
-注意到这里有个关键就在于，我们使用DNS，就必须得使用flannel的网卡，我们很多的操作都需要使用LoadBalancer和使用Service这一层次的操作，基本都需要使用到查询Service。
+注意到这里有个关键就在于，我们使用DNS，就必须得使用flannel的网卡，我们很多的操作都需要使用LoadBalancer和使用Service这一层次的操作，基本都需要使用到查询Service，大部分所谓本地Pod找本地Pod的情况，也不会出现，因为那样需要直接使用IP访问，但是这样动态性基本会被毁灭。
 
 ### User namespace
 

@@ -152,6 +152,15 @@ mac地址(48 bit)现如今主要用在局域网内，我们在此观察一个计
 
 注意到，这里在局域网内部的信息传播方式，是广播的方式，可以想象，如果使用mac地址取代IP地址，则会出现多少信息量的冗余，并且相应的信息内容会非常的不安全。
 
+`ARP Request`:
+
+```
+Sender MAC: interface:mac:address:here
+Sender IP: interface.ip.goes.here
+Target MAC: FF:FF:FF:FF:FF:FF (Broadcast)
+Target IP: target.ip.goes.here
+```
+
 当然，如果每次都进行广播，在局域网内也是没法忍受的。
 
 因此存在ARP表，通过ARP表来进行这一层次的mapping。这一层次的表的更新，他是使用ARP来进行更新的。

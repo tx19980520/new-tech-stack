@@ -1,3 +1,5 @@
+
+
 # linux namespace 与 docker 对namespace的运用
 
 ## namespace info
@@ -112,6 +114,12 @@ ip link set dev veth0 up
 3. 如果是包是发往不同宿主机上的Pod，则需要发包到flannel的网卡上，然后flannel去查询相关的地址，进行封装后发包。
 
 注意到这里有个关键就在于，我们使用DNS，就必须得使用flannel的网卡，我们很多的操作都需要使用LoadBalancer和使用Service这一层次的操作，基本都需要使用到查询Service，大部分所谓本地Pod找本地Pod的情况，也不会出现，因为那样需要直接使用IP访问，但是这样动态性基本会被毁灭。
+
+我们进一步观察相关的路由
+
+![pod&ip](./images/pod&ip.png)
+
+![flannel&router](D:\new-tech-stack\docker\images\flannel&router.png)
 
 ### User namespace
 

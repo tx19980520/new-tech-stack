@@ -156,3 +156,4 @@ ubuntu@cy-kubespray-1:~/redis-cluster$ kubectl logs -n redis-cluster redis-rebal
 
 我们会发现每一个master上都有了相应的负载，我们想要达到的目的达成。
 
+有关redis cluster的几种架构，可见[这里](https://blog.csdn.net/gu_wen_jie/article/details/91873889)

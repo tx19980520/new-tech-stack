@@ -119,7 +119,37 @@ ip link set dev veth0 up
 
 ![pod&ip](./images/pod&ip.png)
 
-![flannel&router](D:\new-tech-stack\docker\images\flannel&router.png)
+![flannel&router](./images/flannel&router.png)
+
+route中我们看见几个虚拟的Iface是flannel管理的，是每一个节点一个子网，和上面的具体的Pod的相关信息也是一一对应的，cni0对应的是本机的网络。
+
+我们这里发现了一个很有趣的现象，跟大家分享，主要是验证cni0、flannel、openstack虚拟网络三者之间的关系。
+
+![cni0-mtu](./images/cni0-mtu.png)
+
+![flannel.1-mtu](./images/flannel.1-mtu.png)
+
+我们可以看到这个cni0管的是本机内Pod跟Pod之间的传输，则会存在cni0 MTU <= flannel <= openstack MTU。
+
+![docker0-mtu](./images/docker0-mtu.png)
+
+之后我们发现，我们的docker0即dokcer的默认子网的interface，使用的是MTU = 1500，然后我们直接启动一个docker image去curl 百度的页面，能够把信息发出去，但是信息进不来。
+
+```bash
+ubuntu@cy-test-1:~$ sudo docker run -it --rm curlimages/curl:7.68.0 -v www.baidu.com
+*   Trying 182.61.200.6:80...
+* TCP_NODELAY set
+* Connected to www.baidu.com (182.61.200.6) port 80 (#0)
+> GET / HTTP/1.1
+> Host: www.baidu.com
+> User-Agent: curl/7.68.0-DEV
+> Accept: */*
+> 
+* Recv failure: Connection reset by peer
+* Closing connection 0
+curl: (56) Recv failure: Connection reset by peer
+
+```
 
 ### User namespace
 

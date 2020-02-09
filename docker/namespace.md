@@ -133,23 +133,11 @@ route中我们看见几个虚拟的Iface是flannel管理的，是每一个节点
 
 ![docker0-mtu](./images/docker0-mtu.png)
 
-之后我们发现，我们的docker0即dokcer的默认子网的interface，使用的是MTU = 1500，然后我们直接启动一个docker image去curl 百度的页面，能够把信息发出去，但是信息进不来。
+之后我们发现，我们的docker0即dokcer的默认子网的interface，使用的是MTU = 1500，我们进行测试，发现还是有MTU的问题。我们在这里认为这个设置他是有问题的，我们这里使用`ping -s 1472 www.bilibili.com`（IP包头20 + ICMP包头8）发现大于1472的都发布出去，我们后面又使用了`tracepath`进行测试。
 
-```bash
-ubuntu@cy-test-1:~$ sudo docker run -it --rm curlimages/curl:7.68.0 -v www.baidu.com
-*   Trying 182.61.200.6:80...
-* TCP_NODELAY set
-* Connected to www.baidu.com (182.61.200.6) port 80 (#0)
-> GET / HTTP/1.1
-> Host: www.baidu.com
-> User-Agent: curl/7.68.0-DEV
-> Accept: */*
-> 
-* Recv failure: Connection reset by peer
-* Closing connection 0
-curl: (56) Recv failure: Connection reset by peer
+![tracepath-pmtu](D:\new-tech-stack\docker\images\tracepath-pmtu.png)
 
-```
+我们发现了pmtu的这个操作，即在进行发送消息之前会主动提供路径上的MTU大小，便于本次传输的MTU的设置，pmtu似乎是一个修正功能。
 
 ### User namespace
 

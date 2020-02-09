@@ -88,6 +88,10 @@ Transport Layer主要的关注点是在于Port，功利的讲，能够通过此�
 
 四层转发所做的事情，其实就是NAT技术，作为网关，NAT主要是修改Package Header和Segment Header，修改其中的IP和port，从而进行转发，在数据出网关时，又一次进行相应的包头的替换。
 
+在此层次设置load balancer，实现的具体细节以TCP为例，当client请求给LB发送完相应的消息之后，会发送一次FIN，这个时候我们的load balancer会直接发送ACK给到client，client此时等待最终的response，然后load balancer会给相应的后端建立TCP connection，等后端回复之后将数组发送回用户。
+
+在此层次设置load balancer，其管理的粒度是在一次connection，但是我们常常会使用多路复用的技术，则我们默认一次connection的包大小几乎相等这一条会被打破，会出现一次connection进行大量的数据传输，则对应的压力也就来到的了对应的backend。
+
 **7层转发**：
 
 7层的转发相对的版块比较丰富，能够控制的内容更多，我们在之前就提到，相应的cookie，url以及http层面所有能看到的内容都是可见的，因此都可以做相应的控制。

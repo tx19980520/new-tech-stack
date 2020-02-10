@@ -23,6 +23,7 @@ public class Server implements Runnable {
     serverSocketChannel.socket().bind(new InetSocketAddress(port));
     serverSocketChannel.configureBlocking(false);
     SelectionKey selectionKey0 = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+    // default register runner after fd can read
     selectionKey0.attach(new Acceptor());
   }
 
@@ -31,7 +32,8 @@ public class Server implements Runnable {
     System.out.println("Server listening to port: " + serverSocketChannel.socket().getLocalPort());
     try {
       while (!Thread.interrupted()) {
-        selector.select();
+        // poll to get fd can read/write single
+        selector.select(); // now when no channels has been ready, the thread is blocking
         Set<SelectionKey> selected = selector.selectedKeys();
         Iterator<SelectionKey> it = selected.iterator();
         while (it.hasNext()) {

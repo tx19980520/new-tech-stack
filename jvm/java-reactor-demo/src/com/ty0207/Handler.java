@@ -21,7 +21,7 @@ public class Handler implements Runnable {
         selectionKey = socketChannel.register(selector, 0);
         selectionKey.attach(this);
         selectionKey.interestOps(SelectionKey.OP_READ);
-        selector.wakeup();
+        selector.wakeup(); // let the select func return
     }
  
  

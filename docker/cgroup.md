@@ -183,3 +183,120 @@ sudo sh -c "echo 1M > memory.limit_in_bytes"
 我们这之前很早就提及到相关在docker中部署springboot应用的相关问题，就是有关于jvm申请内存和CPU使用的问题。因为默认的在java8中，java是不会对cgroup进行理会的。Docker通过CGroups完成的是对内存的限制，而/proc目录是已只读形式挂载到容器中的，由于默认情况下Java压根就看不见CGroups的限制的内存大小，而默认使用/proc/meminfo中的信息作为内存信息进行启动，这种不兼容情况会导致，如果容器分配的内存小于JVM的内存，cgroup会认为JVM是一个流氓进程，最终会被意外的杀掉。
 
 这里需要提到，如果我们开启jvm的相应参数，低版本的jvm的处理方式是将其认为是jvm环境下的host memory容积，所以，在这种情况下jvm仍旧只是会设置相应的最大堆内存为docker 限制内存的1/4，这确实会浪费不少的memory资源。
+
+### kubernetes使用cgroup对容器进行监管
+
+kubernetes最终执行相关node中对于Pod操作的命令，都是由kubelet进行代理执行。当集群中发生资源紧俏的情况时，将会执行一波淘汰来缓解该情况，对于cgroup的原始操作而言，默认是打开了oom_killer，那如若遇到OOM，则cgroup会自作主张进行kill操作，者不符合kubernetes在资源管理上的本意。
+
+kubernetes设置了三种QoS等级，我们简单回顾一下：
+
+**Guaranteed**: 
+
+- Pod 里的每个容器都必须有内存限制和请求，而且必须是一样的。
+- Pod 里的每个容器都必须有 CPU 限制和请求，而且必须是一样的。
+
+**Burstable**: 
+
+- 该 Pod 不满足 QoS 等级 Guaranteed 的要求。
+- Pod 里至少有一个容器有内存或者 CPU 请求。
+
+**BestEffort**:
+
+要给一个 Pod 配置 BestEffort 的 QoS 等级, Pod 里的容器必须没有任何内存或者 CPU　的限制或请求。
+
+我们的淘汰顺序也是由BestEffort、Burstable、Guaranteed。
+
+我们发现相应cgroup管理如下：
+
+在一个node下我们查看`/sys/fs/cgroup/memory`文件夹中，存在kubepods文件夹，是单独对kubepods进行管理的。
+
+kubepods文件夹下存在`besteffort`和`burstable`文件夹，与前文的QoS等级对应。
+
+进入到具体的文件夹之后，则是出现具体的`Pod{Id}`为名的文件夹，我们cat具体的memory.oom_control文件：
+
+```
+oom_kill_disable 0
+under_oom 0
+```
+
+即，没有开启默认kill的模式，且该pod的具体container没有出现oom的情况。
+
+则是kubelet默认监听了相应的oom事件，再交由集群进行给出最终的解决方案。
+
+我们进一步查看相关`kubelet`的源码，因为最开始我认为kubelet是直接的监控的`/sys/cgroup/fs/memory`但是这样的话确实会带来文件句柄过多的情况(与Pod数直接成正比)。
+
+之后我们发现找到我们在`kubelet`的进程(`/proc/1035/fd`)中发现，其中有占据`/dev/kmsg`。
+
+```bash
+root@cy-test-1:/proc/1035/fd# ls -l
+total 0
+lr-x------ 1 root root 64 Oct  2 06:17 0 -> /dev/null
+lrwx------ 1 root root 64 Oct  2 06:17 1 -> socket:[12942]
+lrwx------ 1 root root 64 Oct  2 06:17 10 -> socket:[931226153]
+lrwx------ 1 root root 64 Oct  2 06:17 11 -> socket:[17783]
+lrwx------ 1 root root 64 Oct  2 06:17 12 -> socket:[17784]
+lr-x------ 1 root root 64 Oct  2 06:17 13 -> anon_inode:inotify
+lrwx------ 1 root root 64 Oct  2 06:17 14 -> socket:[917367388]
+lrwx------ 1 root root 64 Oct  2 06:17 15 -> socket:[17788]
+lrwx------ 1 root root 64 Oct  2 06:17 16 -> socket:[16211]
+lrwx------ 1 root root 64 Oct  2 06:17 17 -> socket:[17789]
+lrwx------ 1 root root 64 Oct  2 06:17 18 -> socket:[17790]
+lr-x------ 1 root root 64 Oct  2 06:17 19 -> anon_inode:inotify
+lrwx------ 1 root root 64 Oct  2 06:17 2 -> socket:[12942]
+lrwx------ 1 root root 64 Oct  2 06:17 20 -> anon_inode:[eventpoll]
+lr-x------ 1 root root 64 Oct  2 06:17 21 -> pipe:[16287]
+l-wx------ 1 root root 64 Oct  2 06:17 22 -> pipe:[16287]
+lrwx------ 1 root root 64 Oct  2 06:17 23 -> socket:[16292]
+lr-x------ 1 root root 64 Oct  2 06:17 24 -> anon_inode:inotify
+lr-x------ 1 root root 64 Oct  2 06:17 25 -> /dev/kmsg
+lrwx------ 1 root root 64 Oct  2 06:17 26 -> socket:[17793]
+lrwx------ 1 root root 64 Oct  2 06:17 27 -> socket:[973586276]
+lrwx------ 1 root root 64 Oct  2 06:17 28 -> socket:[17795]
+lr-x------ 1 root root 64 Oct  2 06:17 29 -> anon_inode:inotify
+lrwx------ 1 root root 64 Oct  2 06:17 3 -> socket:[17457]
+lrwx------ 1 root root 64 Oct  2 06:17 30 -> socket:[17807]
+lr-x------ 1 root root 64 Oct  2 06:17 31 -> /dev/kmsg
+lrwx------ 1 root root 64 Oct  2 06:17 32 -> anon_inode:[eventpoll]
+lr-x------ 1 root root 64 Oct  2 06:17 33 -> pipe:[16318]
+lrwx------ 1 root root 64 Oct  2 06:17 34 -> socket:[18987]
+l-wx------ 1 root root 64 Oct  2 06:17 35 -> pipe:[16318]
+lrwx------ 1 root root 64 Sep 21 07:23 37 -> socket:[915691217]
+lrwx------ 1 root root 64 Oct  2 06:30 38 -> socket:[973003976]
+lrwx------ 1 root root 64 Oct  2 06:17 4 -> anon_inode:[eventpoll]
+lrwx------ 1 root root 64 Oct  2 06:17 5 -> socket:[16317]
+lr-x------ 1 root root 64 Oct  2 06:17 6 -> anon_inode:inotify
+lrwx------ 1 root root 64 Oct  2 06:17 7 -> anon_inode:[eventpoll]
+lr-x------ 1 root root 64 Oct  2 06:17 8 -> pipe:[17773]
+l-wx------ 1 root root 64 Oct  2 06:17 9 -> pipe:[17773]
+```
+
+之后我们又去查找`kubelet`的源码发现了在OOM中有一个kmsgPaser的模块，是通过创建Event溯源上去找到的。
+
+```go
+// Package kmsgparser implements a parser for the Linux `/dev/kmsg` format.
+// More information about this format may be found here:
+// https://www.kernel.org/doc/Documentation/ABI/testing/dev-kmsg
+// Some parts of it are slightly inspired by rsyslog's contrib module:
+// https://github.com/rsyslog/rsyslog/blob/v8.22.0/contrib/imkmsg/kmsg.c
+func NewParser() (Parser, error) {
+	f, err := os.Open("/dev/kmsg")
+	if err != nil {
+		return nil, err
+	}
+
+	bootTime, err := getBootTime()
+	if err != nil {
+		return nil, err
+	}
+
+	return &parser{
+		log:        &StandardLogger{nil},
+		kmsgReader: f,
+		bootTime:   bootTime,
+	}, nil
+}
+
+```
+
+则OOM event实质是通过/dev/kmsg给到kubelet
+

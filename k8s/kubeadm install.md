@@ -36,7 +36,7 @@ kubernetes=1.15.0
    ### 安装docker 完成
    sudo vim /etc/apt/sources.list
    添加下列源用于安装各项kubernetes的部件
-   #deb [arch=amd64] https://mirrors.ustc.edu.cn/kubernetes/apt kubernetes-xenial main
+   #deb [arch=amd64] https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main kubernetes-xenial main
    gpg --keyserver keyserver.ubuntu.com --recv-keys BA07F4FB
    gpg -a --export 6A030B21BA07F4FB | sudo apt-key add - #OK
    # 添加源对应的key

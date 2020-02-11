@@ -36,7 +36,7 @@ kubernetes=1.15.0
    ### 安装docker 完成
    sudo vim /etc/apt/sources.list
    添加下列源用于安装各项kubernetes的部件
-   #deb [arch=amd64] https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main kubernetes-xenial main
+   #deb [arch=amd64] https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main
    gpg --keyserver keyserver.ubuntu.com --recv-keys BA07F4FB
    gpg -a --export 6A030B21BA07F4FB | sudo apt-key add - #OK
    # 添加源对应的key
@@ -121,8 +121,10 @@ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.9.1/Documen
 ### flannel 没装没配置
 ### 如果报pull image相关的错误，详见前方的通用操作。
 # 如果你发现出现一些cni方面的错误，可能是上一次的一些东西没有能够得到清理，注意清理一下ip方面的设置
+# cni0是node内部两个Pod进行连通
 ip link delete cni0
-ip link delete flannel.1
+ip link delete flannel.1 
+# flannel 主要是跟其他节点进行信息沟通
 ```
 
 ### node使用nodeport简易部署一个nginx服务

@@ -789,3 +789,27 @@ private void siftDownComparable(int k, E x) {
     }
 ```
 
+## StringBuilder & StringBuffer
+
+StringBuilder和StringBuffer的出现主要是因为String在java中是一个不可变的量，你如果对String做所谓的修改操作，只会生成新的对象，但是我们总归会需要有进行频繁操作字符串的情况，这个时候就需要使用到`StringBuffer`和`StringBuilder`
+
+### StringBuffer
+
+StringBuffer的主要数据结构为
+
+```java
+private transient char[] toStringCache; // 用于缓存toString()方法返回的最近一次value数组中的字符，如果value被修改，这个数组直接被清空
+
+
+char[] value;// 从value可以看出这个内部的实现是依靠的char实现的
+
+int count; // 用于记录value中字符的长度，因为可能扩容的时候是倍扩。
+```
+
+这里我们观察一下StringBuffer，其主要是extends AbstractStringBuilder，主要是一些修改的相关操作，Serializable主要是保证可序列化，CharSequeue主要是有关于长度，获取相关位置的char等操作。注意上述的数据结构都是在其父类AbstractStringBuilder。
+
+我们观察到StringBuffer里面的append和相关的修改操作都是加了synchronized关键字的，因为其父类AbstractStringBuilder其实已经把相应的实现已经实现了，但是我们的StringBuffer是需要线程安全的，所以所有的接口都加上了synchronized。
+
+### StringBuilder
+
+我们仔细看了看StringBuilder和StringBuffer继承的类没有本质的区别，只是StringBuider类没有synchronized的关键字，适合在单线程情况下的大量数据读写。

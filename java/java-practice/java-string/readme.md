@@ -19,7 +19,7 @@ final String ab = "ab";
 final String cd = "cd";
 String abcd = ab + cd;
 String tmp = "abcd";
-System.out.println(tmp == abcd); //true
+System.out.println(tmp == abcd); // true
 ```
 
 因为是final修饰，为常量，因此abcd的值是固定的（甚至再编译期会进行优化），此时abcd和tmp实质都是常量池中的同一个变量。
@@ -27,7 +27,7 @@ System.out.println(tmp == abcd); //true
 ```java
 String ef = "ef";
 String gh = "gh";
-String efgh = ef+gh;
+String efgh = ef + gh;
 String tmp2 = "efgh";
 System.out.println(efgh == tmp2); // false
 ```

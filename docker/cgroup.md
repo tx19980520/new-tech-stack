@@ -152,7 +152,7 @@ memory.max_usage_in_bytes
 
 我们讲述一些常规的操作：
 
-### 添加进程进入到cgroup
+### 添加进程进入到Cgroup
 
 主要是对cgroup.procs的操作，将PID号加入到相应的cgroup.procs即可
 
@@ -180,13 +180,13 @@ sudo sh -c "echo 1M > memory.limit_in_bytes"
 
 ## jvm与docker
 
-我们这之前很早就提及到相关在docker中部署springboot应用的相关问题，就是有关于jvm申请内存和CPU使用的问题。因为默认的在java8中，java是不会对cgroup进行理会的。Docker通过CGroups完成的是对内存的限制，而/proc目录是已只读形式挂载到容器中的，由于默认情况下Java压根就看不见CGroups的限制的内存大小，而默认使用/proc/meminfo中的信息作为内存信息进行启动，这种不兼容情况会导致，如果容器分配的内存小于JVM的内存，cgroup会认为JVM是一个流氓进程，最终会被意外的杀掉。
+我们这之前很早就提及到相关在docker中部署springboot应用的相关问题，就是有关于jvm申请内存和CPU使用的问题。因为默认的在java8中，java是不会对cgroup进行理会的。Docker通过Cgroup完成的是对内存的限制，而/proc目录是已只读形式挂载到容器中的，由于默认情况下Java压根就看不见Cgroup的限制的内存大小，而默认使用/proc/meminfo中的信息作为内存信息进行启动，这种不兼容情况会导致，如果容器分配的内存小于JVM的内存，Cgroup会认为JVM是一个流氓进程，最终会被意外的杀掉。
 
 这里需要提到，如果我们开启jvm的相应参数，低版本的jvm的处理方式是将其认为是jvm环境下的host memory容积，所以，在这种情况下jvm仍旧只是会设置相应的最大堆内存为docker 限制内存的1/4，这确实会浪费不少的memory资源。
 
 ### kubernetes使用cgroup对容器进行监管
 
-kubernetes最终执行相关node中对于Pod操作的命令，都是由kubelet进行代理执行。当集群中发生资源紧俏的情况时，将会执行一波淘汰来缓解该情况，对于cgroup的原始操作而言，默认是打开了oom_killer，那如若遇到OOM，则cgroup会自作主张进行kill操作，者不符合kubernetes在资源管理上的本意。
+kubernetes最终执行相关node中对于Pod操作的命令，都是由kubelet进行代理执行。当集群中发生资源紧俏的情况时，将会执行一波淘汰来缓解该情况，对于Cgroup的原始操作而言，默认是打开了oom_killer，那如若遇到OOM，则Cgroup会自作主张进行kill操作，者不符合kubernetes在资源管理上的本意。
 
 kubernetes设置了三种QoS等级，我们简单回顾一下：
 

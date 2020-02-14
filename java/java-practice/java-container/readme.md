@@ -581,7 +581,7 @@ private void fixAfterInsertion(Entry<K,V> x) {
     }
 ```
 
-注意到这里的TreeMap是继承`NavigableMap`则相对于`HashMap`则会多出一些接口，主要是因为TreeMap是基于红黑树进行工作的，因此TreeMap可以做一些scope类型的操作。
+注意到这里的TreeMap是继承`NavigableMap`则相对于`HashMap`则会多出一些接口，主要是因为TreeMap是基于红黑树进行工作的，因此TreeMap可以做一些scope(bound)类型的操作。
 
 详细的接口见[这里](https://docs.oracle.com/javase/8/docs/api/java/util/NavigableMap.html)
 

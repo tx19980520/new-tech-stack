@@ -1,0 +1,18 @@
+# Message Queue Pull & Push Strategy
+
+就Message Queue消费端获取message的两种策略进行简单介绍。
+
+## pull
+
+pull更加倾向于是一个长轮询的机制，当consumer处理完一条信息之后，就会想broker询问下一条消息。
+
+我们这里会进行考虑，就是在较为空闲的情况下，我们如果一直去轮询broker，但是这样会造成cpu空转，也没有获取到实际有用的消息。比较类似于对于retry的一个处理，我们可以选择对于每一次的轮询进行时间间隔倍增，倍增的主要理由是在于我们希望让出更多的CPU时间。但是如果峰值突然到来，我们的broker突然有了不少的信息，但是我们的consumer仍旧不会去获取相关的信息，因为他们在沉睡。我们会想到另外一种机制，就是我们建立TCP长连接，这个时候我们在一次获取信息时，如果broker有消息就直接返回信息，如果没有信息，就直接IO阻塞，开始睡觉，直到broker这边回复相关消息之后再进行相应的操作，在consumer这边写相应的select。
+
+## push
+
+push在broker和consumer在创建好tcp连接之后，之后的推流方向，就主要是broker向consumer进行message的推送，这里consumer主要是回复ack。如果consumer正在进行message的操作，则进入到BlockQueue之中。这里样策略下，我们主要考虑的是如果我们consumer的处理能力的不太够（大部分情况下，producer的生产能力是一定强于consumer）。这样的情况下我们的consumer可能出现大量的拥堵。并且我们没有办法就不同consumer的处理能力来进行区别对待。当然我们可以通过qos的设置来控制consumer的提前量。
+
+这种情况下，我们要考虑到consumer的相关问题，consumer会存在宕机和网络不畅的情况，consumer如果consumer宕机，但是相关的信息又已经交到其BlockQueue中，这个时候broker确实可以监控到consumer出现问题，但是也不能将其已经被分配的message进行撤回，因为如果相应的consumer只是网络问题，一会又好了，那就可能相应的消息就会出现多次消费的情况。
+
+
+

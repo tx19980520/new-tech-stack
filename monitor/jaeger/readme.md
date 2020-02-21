@@ -146,7 +146,7 @@ go get github.com/jaegertracing/jaeger
 
 该[视频](https://www.youtube.com/watch?v=RvCcWltMY7U)有着莫大的帮助，我们直接将两个服务启动，按照上述的配置进行操作，最终可以得到如下的结果
 
-![chain](./chain.png)
+![chain](./images/chain.png)
 
 由上图可知，这个调用链的概念已经能够通过访问建立，上面的数字越大代表在该时间段内的通信次数。
 

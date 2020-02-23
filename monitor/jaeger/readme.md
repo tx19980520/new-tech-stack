@@ -161,3 +161,4 @@ go get github.com/jaegertracing/jaeger
 ![istio-chain](./images/istio-chain.png)
 
 我们依靠的是Istio在其中的一个表现，Istio监管着整个网络中的流量，因此相当于Jeager的监控，实质上是在监控Istio自动注入的envoy和cidecar。
+

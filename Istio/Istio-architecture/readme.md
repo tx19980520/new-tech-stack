@@ -16,6 +16,14 @@
 
 **Mixer**：Mixer的主要功能是收集envoy的相关数据，关注各方proxy是否的开始执行相关policy。
 
+Mixer主要提供三个核心功能：
+
+- 前置条件检查(Precondition Checking): 某一服务响应外部请求前,通过Envoy向Mixer发送Check请求,检查该请求是否满足一定的前提条件,包括白名单检查、ACL检查等。
+- 配额管理: 当多个请求发生资源竞争时，通过配额管理机制可以实现对资源的有效管理。
+- 遥测报告上报:该服务处理完请求后,通过Envoy向Mixer上报日志、监控等数据。
+
+饱受诟病的主要是check，每一次请求（后续有了cache也不是说每次请求），都需要想mixer进行check，检查白名单等等，检查也必定是阻塞的，所以性能上有着很大的缺陷。
+
 **Pilot**：Pilot实质上就是一个将envoy细节与语义描述解耦的component，因为我们可能使用的具体环境可能是kubernetes，可能是consul等等，甚至是混合的环境。之后相应的配置文件会被更新到具体的具体的proxy，这里的相关配置主要是针对于路由相关。
 
 **Citadel**：citadel主要是关注安全和权限的管理（可以拿来做多租户？），mTLS，以及服务和服务之间的调用的权限管理（比较细粒度的管控），以及有关于后续扩展的JWT端到端鉴权。
@@ -54,7 +62,7 @@ nonce：类似于请求的ID，用来与响应或者请求进行匹配。
 
 ## Istio 1.5
 
-我们以[这篇](https://mp.weixin.qq.com/s?__biz=MzIwNDIzODExOA==&mid=2650167577&idx=1&sn=3b68bbfbd79249b4f6d20991b3df5d8a&chksm=8ec1c550b9b64c46edf3963c86ec64c2f4ff4f4a9241ca238a4f7eb853f54b160f43c0daade5&scene=126&sessionid=1583490456&key=3b0e800a5b4608692c64c2f836110728833b7eeee329535214d70b3d683a9d110240be7f4c0814e661e7545afbbfc65f090c598b26338ce8eea4afb858184a77ec17e46918746bcfc3f6dfb1b6453f8f&ascene=1&uin=NDk4Nzc3MTM%3D&devicetype=Windows+10&version=62080079&lang=zh_CN&exportkey=A8YAgKULryEDY2AFGUSqsHM%3D&pass_ticket=2Ya95N%2BYz8mQokjfmAOQKNdtkOn%2BfP2DmiWjiviwlmM%3D)公众号的论述
+以[这篇](https://mp.weixin.qq.com/s?__biz=MzIwNDIzODExOA==&mid=2650167577&idx=1&sn=3b68bbfbd79249b4f6d20991b3df5d8a&chksm=8ec1c550b9b64c46edf3963c86ec64c2f4ff4f4a9241ca238a4f7eb853f54b160f43c0daade5&scene=126&sessionid=1583490456&key=3b0e800a5b4608692c64c2f836110728833b7eeee329535214d70b3d683a9d110240be7f4c0814e661e7545afbbfc65f090c598b26338ce8eea4afb858184a77ec17e46918746bcfc3f6dfb1b6453f8f&ascene=1&uin=NDk4Nzc3MTM%3D&devicetype=Windows+10&version=62080079&lang=zh_CN&exportkey=A8YAgKULryEDY2AFGUSqsHM%3D&pass_ticket=2Ya95N%2BYz8mQokjfmAOQKNdtkOn%2BfP2DmiWjiviwlmM%3D)公众号的论述结合自身的操作实践，讨论和总结一下相关
 
 ### 改变的原因
 
@@ -72,3 +80,20 @@ nonce：类似于请求的ID，用来与响应或者请求进行匹配。
    - autoinject 需要 Pilot 启动完成；
 
    至少证明了，这个启动实质是需要一个“编排”的过程。
+
+   Mixer作为一个中心化的组件，需要收集大量的日志以及进行相应的检测，虽然有过相应的cache的优化，但是性能整体还是很差的。
+
+### 1.5版本新架构
+
+![Istio1.5](./images/Istio1.5.png)
+
+1.5版本架构里面将Pilot、Citadel、Galley三者以单体的形式整合在了一起，Mixer模块并不单独出现，而是进入到了Proxy。整体而言，Istio实质是在修改自己的限界上下文，不是单纯的整合为单体。
+
+就针对Mixer in Proxy而言，我们对比一下现在的结构和1.5版本之前的结构
+
+![mixer-v1](./images/mixer-v1.png)
+
+![mixer-v2](./images/mixer-v2.png)
+
+整体而言，原来的Mixer是中心化的处理，是gRPC来进行调用的，这部分的latency较大，资源的消耗也较大，现阶段我们将Mixer直接植入到了proxy，相当于原来是一个总的水管，现在被分流到了各个细的小水管中，好处在于去中心化，且去掉了繁琐的网络调用，但是个人认为，资源消耗不一定会减少，因为每一个Envoy都需要Mixer的支持（当然根据配置，他可能只需要支持一些部分就可以了，因为我们可能设置了不监控等等config），这里各方给出的一个折中方案是让envoy支持wasm的运行环境。这将使Mixer及其适配器能够加载到通用的Envoy二进制文件中。 它还将Mixer及其适配器放入沙盒，防止这些组件中的错误导致Envoy进程失效。
+

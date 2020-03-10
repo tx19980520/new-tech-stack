@@ -297,3 +297,11 @@ func (s *grpcServer) Check(ctx context.Context, req *mixerpb.CheckRequest) (*mix
 
 整个envoy与mixer交互的过程基本就如上。
 
+在此我们会思考，是因为quota，istio才开始不再启用Mixer了吗，如果没有了Mixer，我们又应当如何实现这个rate limit的功能呢。进一步的，就开始考察Envoy如何做到rate limit
+
+最后发现如果要envoy单独使用global rate limit，需要在各envoy中注册一个rate limit service，lyft官方提供了一个go/gRPC的实现，其背后主要是使用redis实现令牌桶
+
+![rate-limit-architecture](./images/ratelimit.jpg)
+
+实质上，要实现整体的rate limit，你的信息量则必须是全局的，所以要实现global rate limit，必须要能够有一个中心化的存储，除非你希望将global rate limit拆分成为多个local rate limit
+

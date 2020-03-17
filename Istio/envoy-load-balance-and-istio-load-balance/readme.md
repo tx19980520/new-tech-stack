@@ -29,7 +29,7 @@ Istio采取的是分布式负载均衡和全局负载均衡的一个结合。
 ![istio-loadbalance](./images/istio-loadbalance.jpg)
 
 1. ServiceB增添了一个Pod，此时kubernetes API server已经了解到相关Pod的增添
-2. Pilot接收到Kubernetes的相关信息
+2. Pilot接收到Kubernetes的相关信息（正确点的说法是从Galley那边拿过来）
 3. Pilot将相关内容分发到各个Proxy中，比如Envoy XDS来获取相应的配置
 4. 将相应的Pod放进池子中，开始正常的Load Balancing
 
@@ -66,4 +66,4 @@ Envoy **不会路由并将删除目标主机**。这是 Envoy 清除主机数据
 
 ## Kubernetes Load Balancing
 
-kubernetes的 Load Balancing主要是体现在Service上，对应在上图Istio中的Load Balancing中的第一个步骤。
+kubernetes的 Load Balancing主要是体现在Service上，对应在上图Istio中的Load Balancing中的第一个步骤。kubernetes的这种操作主要是基于kube-proxy来进行，kube-proxy会针对定义好的规则，重写iptables，从而控制流量的转发。

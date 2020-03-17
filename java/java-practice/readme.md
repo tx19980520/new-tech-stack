@@ -11,14 +11,14 @@
 预计准备的相关内容：
 
 - java基础
-
 - [java泛型](./override&reload)
 - java运行时内存模型
-- java多线程
+- [java多线程](./thread&synchronization)
 - NIO
 - [reflect&invoke](./reflect&invoke)
 - [java容器](./java-container)
 - [jvm GC](./garbage-collection)
 - java并发
+- [java classloader](./classloader)
 
 提供一个基于cmd的java环境，用于测试

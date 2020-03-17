@@ -12,7 +12,7 @@
 istioctl manifest apply --set values.global.disablePolicyChecks=false --set values.pilot.policy.enabled=true
 ```
 
-如果是低版本的Istio，可能需要相关helm的操作，具体可见1.2版本的文档
+如果是低版本的Istio，需要相关helm的操作，具体可见1.2版本的文档
 
 之后就是写相关handler的规则，以及被bind到哪一个计数器上，观察的返回是什么等等，这些规则和handler都是要注入到Mixer中的
 

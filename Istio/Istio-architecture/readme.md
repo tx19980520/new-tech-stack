@@ -26,7 +26,7 @@ Mixer主要提供三个核心功能：
 
 **Pilot**：Pilot实质上就是一个将envoy细节与语义描述解耦的component，因为我们可能使用的具体环境可能是kubernetes，可能是consul等等，甚至是混合的环境。之后相应的配置文件会被更新到具体的具体的proxy，这里的相关配置主要是针对于路由相关。
 
-**Citadel**：citadel主要是关注安全和权限的管理（可以拿来做多租户？），mTLS，以及服务和服务之间的调用的权限管理（比较细粒度的管控），以及有关于后续扩展的JWT端到端鉴权。
+**Citadel**：citadel主要是关注安全和权限的管理（可以拿来做多租户？），mTLS（主要是生成证书），以及服务和服务之间的调用的权限管理（比较细粒度的管控），以及有关于后续扩展的JWT端到端鉴权。
 
 **Galley**：（我以前经常看错，以为是Gallery），在Istio1.0版本中主要的作用是就用户apply的配置进行校对，后续我们会看到他在Istio1.1版本中有较大的修改，内容更加的丰富了。
 
@@ -36,7 +36,11 @@ Mixer主要提供三个核心功能：
 
 ![Istio1.1](./images/Istio1.1.png)
 
-Istio1.1里面我们可以看到Galley被明确的表示了出来，Galley的出现主要是对Istio CRD的统一管理，从而演变出了MCP(Mesh Configuration Protocol)
+Istio1.1里面我们可以看到Galley被明确的表示了出来，Galley的出现主要是对Istio CRD的统一管理，从而演变出了MCP(Mesh Configuration Protocol)，从[Design Doc](https://docs.google.com/document/d/1GRLQ6bs2pzhURKQ871fgoagh8bkJkRYRFABgAuezK8s/edit#)里面偷出来两个图
+
+![](D:\new-tech-stack\Istio\Istio-architecture\images\galley-design.png)
+
+![galley-arch](./images/galley-arch.png)
 
 ![MCP](./images/MCP.png)
 
@@ -54,7 +58,7 @@ Collection：此次请求需要的数据类型。
 
 nonce：类似于请求的ID，用来与响应或者请求进行匹配。
 
-同时MCP协议还定义了增量推送的能力，如下图所示。可以在RequestResouces请求中增加incremental=true字段，这样Sink在收到数据后，会根据增量的形式进行数据的更新。协议的文档中还指出，必须在RequestResouces请求中包含incremental=true的情况下，才能返回给Sink增量的数据，否则Sink端对于该数据的处理将是未知的。目前社区的Pilot还没有支持增量的MCP数据推送，从下一节的源码分析中可以看到，Pilot对于每一个Source（Pilot可以配置多个Source，每个Source之间的数据是隔离的）发送的数据，都是整体替换更新的。目前社区的一个进展是正在进行serviceentries类型数据的增量更新的支持，而且是endpoints粒度的增量更新。
+同时MCP协议还定义了增量推送的能力，如下图所示。可以在RequestResouces请求中增加incremental=true字段，这样Sink在收到数据后，会根据增量的形式进行数据的更新。协议的文档中还指出，必须在RequestResouces请求中包含incremental=true的情况下，才能返回给Sink增量的数据，否则Sink端对于该数据的处理将是未知的。目前社区的Pilot还没有支持增量的MCP数据推送，从下一节的源码分析中可以看到，Pilot对于每一个Source（Pilot可以配置多个Source，每个Source之间的数据是隔离的）发送的数据，都是整体替换更新的。目前社区的一个进展是正在进行serviceEntries类型数据的增量更新的支持，而且是endpoints粒度的增量更新。
 
 这个地方要提到，我们的确会存在多集群的情况，在跨集群且都适用Istio进行管理的情况下，跨集群的Pilot/Mixer无法获取到主集群的Galley，这个时候该集群的Galley是需要作为client去同步主集群Galley。
 
@@ -77,7 +81,7 @@ nonce：类似于请求的ID，用来与响应或者请求进行匹配。
    - Citadel 要先启动为其他组件生成证书；
    - Galley 要先监控 apiserver；
    - Pilot 要 Galley 准备好才能启动；
-   - autoinject 需要 Pilot 启动完成；
+   - autoinjector 需要 Pilot 启动完成；
 
    至少证明了，这个启动实质是需要一个“编排”的过程。
 

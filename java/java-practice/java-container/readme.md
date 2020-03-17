@@ -203,7 +203,7 @@ public void add(E e) {
 
 HashMap主要由Node(Map.Entry)的数组和一个hash算法构成，另外还有一个的Set来拥有cached的数据，基本可以理解为一个两层次的数据结构（冷热数据）。
 
-threshold是capacity * load factor，load factor控制数组的密集程度，越密集则容量越大，但是相对的冲突的概率也将变大，因此threshold即为Map的实际容量
+threshold是capacity * load factor，load factor控制数组的密集程度，越密集则容量越大，但是相对的冲突的概率也将变大，因此threshold即为Map的实际容量。
 
 ```java
 Node(int hash, K key, V value, Node<K,V> next) {

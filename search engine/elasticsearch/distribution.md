@@ -54,7 +54,7 @@ data主要负责数据的写入与查询，压力相对较大，需要大内存�
 
 ElasticSearch中存在primary shard和replica shard，replica shard是primary shard的副本，负责容错，以及承担读请求负载。
 
-primary shard的默认数量是5，replica默认是1,primary shard不能喝自己的replica shard放在同一个节点上，否则节点宕机，primary shard和副本都消失，容错机制将失效。
+primary shard的默认数量是5，replica默认是1,primary shard不能和自己的replica shard放在同一个节点上，否则节点宕机，primary shard和副本都消失，容错机制将失效。
 
 当我们添加或删除节点时，数据都会发生rebalance，rebalance的决策是在master，rebalance的最小单元是shard，不是在于单条数据。
 

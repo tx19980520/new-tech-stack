@@ -26,7 +26,7 @@
 
 #### SSL & TLS
 
-SSL 和TLS都是基于TCP的，因此我们在此将TCP的相关操作透明，我们关注的是两者之间额的交互。
+SSL 和TLS都是基于TCP的，因此我们在此将TCP的相关操作透明，我们关注的是两者之间的交互。
 
 ![TLS-handshake](./images/TLS-handshake.png)
 

@@ -1,0 +1,1 @@
+https://shockerli.net/post/golang-faq-cannot-take-the-address/
